@@ -1,9 +1,24 @@
 {-# OPTIONS -Wall -fwarn-tabs -fno-warn-type-defaults #-}
 
 module Algebra
-    (symbol
-    ,diff)
 where
 
-
-import Engine.Base
+import Engine.Base (Expr
+                   ,symbol
+                   ,symbols
+                   ,e'
+                   ,num
+                   ,sym
+                   ,sym'
+                   ,term
+                   ,term'
+                   ,sq
+                   ,ln
+                   ,sec
+                   ,csc
+                   ,cot
+                   ,simple
+                   ,simplify
+                   ,diff
+                   ,diffF
+                   )

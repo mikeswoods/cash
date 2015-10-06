@@ -1,105 +1,182 @@
 {-# OPTIONS -Wall -fwarn-tabs -fno-warn-type-defaults #-}
-
 module Engine.Rules.Simplify
-    (symbol
-    ,squareToPower
-    ,simplify
-    ,simpl)
+  (symbol
+  ,simple
+  ,simplify
+  ,simplCancelSigns
+  ,rootToPower
+  )
 where
 
-
 import Engine.Expression
-import Engine.Util
 
 
 -- |
-squareToPower :: Expr -> Expr
-squareToPower (App Sqrt e) = e :^ (num 1 :/ num 2)
-squareToPower e            = e
+rootToPower :: Expr -> Expr
+rootToPower (App Sqrt e) = e :** (num 1 :/ num 2)
+rootToPower e            = e
 
 
--- | Fraction simplication
-simplFrac :: Expr -> Expr
--- (n1 / d1) + (n2 / d2)
-simplFrac e@((n1 :/ d1@(N d1')) :+ (n2 :/ d2@(N d2')))
-  | isWholeNumber d1' && isWholeNumber d2' = ((n1 :* d2) :+ (n2 :* d1)) :/ (num scale)
-  | otherwise                              = e
+-- Evaluate numbers under basic arithmetical operations
+simplEval :: Expr -> Expr
+simplEval (N n :+ N m)  = num $ n + m
+simplEval (N n :- N m)  = num $ n - m
+simplEval (N n :* N m)  = num $ n * m
+simplEval (N n :/ N m)  = num $ n / m
+simplEval (N n :** N m) = num $ n ** m
+simplEval e             = e
+
+
+simplCancelSigns :: Expr -> Expr
+simplCancelSigns (App Neg (App Neg a)) = a
+simplCancelSigns (a :+ (App Neg b))    = a - b
+simplCancelSigns (a :- (App Neg b))    = a + b
+simplCancelSigns e                     = e
+
+
+-- Perform basic cancellation steps
+simplCancellation :: Expr -> Expr
+simplCancellation (x :+ N 0) = x
+simplCancellation (N 0 :+ x) = x
+simplCancellation (x :- N 0) = x
+simplCancellation (N 0 :- x) = -x
+simplCancellation (x :* N 1) = x
+simplCancellation (N 1 :* x) = x
+simplCancellation (_ :* N 0) = num 0
+simplCancellation (N 0 :* _) = num 0
+simplCancellation e          = e
+
+
+-- Perform basic arithmetical simplifications
+simplArithmetic :: Expr -> Expr
+simplArithmetic ((App Neg a) :* b) = -(a :* b)
+simplArithmetic (a :* (App Neg b)) = -(a :* b)
+simplArithmetic (a :* (b :+ c)) = (a * b) + (a * c)
+simplArithmetic ((b :+ c) :* a) = (a * b) + (a * c)
+simplArithmetic (a :* (b :- c)) = (a * b) - (a * c)
+simplArithmetic ((b :- c) :* a) = (a * b) - (a * c)
+simplArithmetic (a :* (b :/ c)) = (a * b) / c
+simplArithmetic ((b :/ c) :* a) = (a * b) / c
+simplArithmetic ((a :/ b) :+ (c :/ d))
+  | b == d    = ((a * d) + (b * c)) / (b * d)
+  | otherwise = (a + c) / b
+simplArithmetic ((a :/ b) :/ (c :/ d)) = (a * d) / (b * c)
+simplArithmetic ((a :/ b) :/ c) = a / (b * c)
+simplArithmetic (a :/ (b :/ c)) = (a * c) / b
+simplArithmetic ((a :/ b) :- (c :/ d))
+  | b == d    = (a - c) / b
+  | otherwise = ((a * d) - (b * c)) / (b * d)
+simplArithmetic e@(((a :* b) :+ (a' :* c)) :/ d)
+  | a == a' && a' == d && d /= num 0 = b + c
+  | otherwise                        = e
+simplArithmetic e@((a :* x@(S _)) :+ (b :* y@(S _)))
+  | x == y    = (a + b) * x
+  | otherwise = e
+simplArithmetic e@((a :* x@(S _)) :- (b :* y@(S _)))
+  | x == y    = (a - b) * x
+  | otherwise = e
+simplArithmetic ((a :* x@(S _)) :* (b :* y@(S _)))
+  | x == y    = (a * b) * (x ** num 2)
+  | otherwise = (a * b) * (x * y)
+simplArithmetic e = e
+
+
+-- Merge like terms
+simplLikeTerms :: Expr -> Expr
+simplLikeTerms e@(a :* b)
+  | a == b    = a ** 2 
+  | otherwise = e
+simplLikeTerms e = e
+
+
+-- | Perform simplification based on properties of absolute values
+simplAbs :: Expr -> Expr
+simplAbs (App Abs (a :* b)) = (abs a) * (abs b)
+simplAbs e                  = e
+
+
+-- | Perform simplification based on properties of exponents
+simplExponents :: Expr -> Expr
+simplExponents (a :** N 1)    = a
+simplExponents (_ :** N 0)    = num 1
+simplExponents (a :** N (-1)) = recip a
+simplExponents e@(a :** N n)
+  | n < 0     = recip (a ** (num $ abs n))
+  | otherwise = e
+simplExponents e@((a :** m) :* (a' :** n))
+  | a == a'   = a ** (m + n)
+  | otherwise = e
+simplExponents e@((a :** m) :/ (a' :** n))
+  | a == a'   = a ** (m - n)
+  | otherwise = e
+simplExponents ((a :** m) :** n) = a ** (m * n)
+simplExponents ((a :* y) :** n)  = (a ** n) * (y ** n)
+simplExponents ((a :/ y) :** n)  = (a ** n) / (y ** n)
+simplExponents e                 = e
+
+
+-- | Perform simplification based on properties of logarithms
+simplLogarithms :: Expr -> Expr
+simplLogarithms (App Log ((C E) :** x)) = x
+simplLogarithms (App Log (C E))         = num 1
+simplLogarithms (App Log (x :* y))      = (log x) + (log y)
+simplLogarithms (App Log (x :** y))     = y * (log x)
+simplLogarithms (App Log (N 1 :/ x))    = -(log x)
+simplLogarithms (App Log (N 1))         = num 0
+simplLogarithms (App Exp (App Log x))   = x
+simplLogarithms e                       = e
+
+
+-- Simplification rules
+simplifyRules :: [Expr -> Expr]
+simplifyRules = [simplLogarithms
+                ,simplExponents
+                ,simplAbs
+                ,simplLikeTerms
+                ,simplArithmetic
+                ,simplEval
+                ,simplCancellation
+                ,simplCancelSigns
+                ]
+
+
+-- | Reorders the expression tree such that constants, numbers, and symbols
+-- | are on the left hand side of any associatve sub-expression
+reorderTree :: Expr -> Expr
+reorderTree n@(N _)     = n
+reorderTree c@(C _)     = c
+reorderTree s@(S _)     = s
+reorderTree e@(x :+ y)
+  | isPrimitive x = (x :+ y)
+  | isPrimitive y = (y :+ x)
+  | otherwise     = e
+reorderTree e@(_ :- _)  = e
+reorderTree e@(x :* y)
+  | isPrimitive x = (x :* y)
+  | isPrimitive y = (y :* x)
+  | otherwise     = e
+reorderTree e@(_ :/ _)  = e
+reorderTree e@(_ :** _) = e
+reorderTree e@(App _ _) = e
+
+
+-- | Apply the simplifier until we reach a fixed point for the expression
+simple :: Expr -> Expr
+simple e = reorderTree $ run e $ applyRules e
   where
-    scale = (fromIntegral $ lcm (toWholeNumber d1') (toWholeNumber d2')) :: Float
--- (n1 / d1) - (n2 / d2)
-simplFrac e@((n1 :/ d1@(N d1')) :- (n2 :/ d2@(N d2')))
-  | isWholeNumber d1' && isWholeNumber d2' = ((n1 :* d2) :- (n2 :* d1)) :/ (num scale)
-  | otherwise                              = e
-  where
-    scale = (fromIntegral $ lcm (toWholeNumber d1') (toWholeNumber d2')) :: Float
--- (n1 / d1) * (n2 / d2)
-simplFrac ((n1 :/ d1) :* (n2 :/ d2)) = (n1 :* n2) :/ (d1 :* d2)
--- (n1 / d1) / (n2 / d2)
-simplFrac ((n1 :/ d1) :/ (n2 :/ d2)) = (n1 :* d2) :/ (d1 :* n2)
--- otherwise
--- N + (n / d)
-simplFrac (n@(N _) :+ frac@(_ :/ _)) = simpl $ (n :/ num 1) :+ frac
--- N - (n / d)
-simplFrac (n@(N _) :- frac@(_ :/ _)) = simpl $ (n :/ num 1) :- frac
--- N * (n / d)
-simplFrac (n@(N _) :* frac@(_ :/ _)) = simpl $ (n :/ num 1) :* frac
--- N / (n / d)
-simplFrac (n@(N _) :/ frac@(_ :/ _)) = simpl $ (n :/ num 1) :/ frac
--- (n / d) + N 
-simplFrac (frac@(_ :/ _) :+ n@(N _) ) = simpl $ frac :+ (n :/ num 1)
--- (n / d) - N
-simplFrac (frac@(_:/ _) :- n@(N _) ) = simpl $ frac :- (n :/ num 1)
--- (n / d) * N
-simplFrac (frac@(_ :/ _) :* n@(N _)) = simpl $ frac :* (n :/ num 1)
--- (n / d) / N
-simplFrac (frac@(_ :/ _) :/ n@(N _)) = simpl $ frac :/ (n :/ num 1)
-simplFrac (e@((N n1) :/ (N n2)))
-  | sigDigits m == 0.0 = N m 
-  | otherwise          = simpl e
-  where
-    m = n1 / n2
-simplFrac e = e
+    applyRules = foldr (.) id $ simplifyRules
+    run x x' 
+      | x == x'   = x
+      | otherwise = run x' $ applyRules x'
 
 
--- | Core simplification rules
-simpl :: Expr -> Expr
--- Prune zeros
-simpl (e :+ (N 0.0))          = simpl e
-simpl (e :- (N 0.0))          = simpl e
-simpl ((N 0.0) :+ e)          = simpl e
-simpl ((N 0.0) :- e)          = -simpl e
--- Distribute
-simpl (m :* (n1 :+ n2))       = (simpl $ m :* n1) :+ (simpl $ m :* n2)
-simpl (m :* (n1 :- n2))       = (simpl $ m :* n1) :- (simpl $ m :* n2)
---simpl (m :* (n1 :/ n2))       = (simpl $ m :* n1) :/ (simpl n2)
--- Prune num 1s
-simpl ((N 1.0) :* e)          = simpl e
-simpl (e :* (N 1.0))          = simpl e
--- Zero out
-simpl ((N 0.0) :* _)          = num 0
-simpl (_ :* (N 0.0))          = num 0
--- Eval 
-simpl ((N n1) :+ (N n2))      = num $ n1 + n2
-simpl ((N n1) :- (N n2))      = num $ n1 - n2
-simpl ((N n1) :* (N n2))      = num $ n1 * n2
-simpl ((N n1) :^ (N n2))      = num $ n1 ** n2
--- Power rules
-simpl (e :^ (N 1.0))          = simpl e
-simpl (_ :^ (N 0.0))          = num 1
-simpl (App Neg (N n))   = N $ -n
-simpl (e1 :+ e2)        = (simpl e1) :+ (simpl e2)
-simpl (e1 :- e2)        = (simpl e1) :- (simpl e2)
-simpl (e1 :* e2)        = (simpl e1) :* (simpl e2)
-simpl (e1 :/ e2)        = (simpl e1) :/ (simpl e2)
-simpl (e1 :^ e2)        = (simpl e1) :^ (simpl e2)
-simpl e                 = e
-
-
--- |
+-- | Recursive simplifier that walks the expression tree
 simplify :: Expr -> Expr
-simplify e = simplify' e $ simpl e
-  where
-    simplify' eOld eNew
-      | eOld == eNew = eOld
-      | otherwise    = simplify' eNew $ simpl eNew
+simplify (x :+ y)    = simple $ ((simplify $ simple x) +  (simplify $ simple y))
+simplify (x :- y)    = simple $ ((simplify $ simple x) -  (simplify $ simple y))
+simplify (x :* y)    = simple $ ((simplify $ simple x) *  (simplify $ simple y))
+simplify (x :/ y)    = simple $ ((simplify $ simple x) /  (simplify $ simple y))
+simplify (x :** y)   = simple $ ((simplify $ simple x) ** (simplify $ simple y))
+simplify (App Neg e) = App Neg $ simplify e
+simplify e           = simple e
 
