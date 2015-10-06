@@ -18,11 +18,12 @@ module Engine.Expression
   ,sym
   ,sym'
   ,term
+  ,term'
   ,ln
   ,sec
   ,csc
   ,cot
-  ,square)
+  ,sq)
 where
 
 
@@ -122,7 +123,7 @@ infixl 4 :+
 infixl 4 :-
 infixl 5 :*
 infixl 5 :/
-infixr 6 :^
+infixr 6 :**
 
 data Expr = N Float
           | C Constant
@@ -131,9 +132,9 @@ data Expr = N Float
           | Expr :- Expr
           | Expr :* Expr
           | Expr :/ Expr
-          | Expr :^ Expr
+          | Expr :** Expr
           | App Function Expr
-          deriving (Eq, Show)
+          deriving (Eq)
 
 
 instance Num Expr where
@@ -147,6 +148,7 @@ instance Num Expr where
   signum (C c)     = N (signum $ eval c)
   signum _         = N 0
 
+
 instance Fractional Expr where
   fromRational n = num $ fromRational n
   (/)            = (:/)
@@ -157,7 +159,7 @@ instance Floating Expr where
   pi          = C Pi
   exp         = App Exp
   log         = App Log
-  (**)        = (:^)
+  (**)        = (:**)
   logBase x y =log y / log x
   sqrt        = App Sqrt
   sin         = App Sin
@@ -185,10 +187,10 @@ showInfix d (e1@(N _) :* e2@(N _))
   | otherwise = printf "(%s * %s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1 :* e2)        = printf "%s%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1 :/ e2)        = printf "%s / %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :^ e2@(N _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :^ e2@(C _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :^ e2@(S _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :^ e2)        = printf "(%s)^(%s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(N _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(C _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(S _))  = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2)        = printf "(%s)^(%s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (App Neg n@(N _)) = printf "-%s" (showInfix (d+1) n)
 showInfix d (App fn e)        = printf "%s(%s)" (show fn) (showInfix (d+1) e)
 showInfix _ (App fn _)        = printf "%s(...)" (show fn)
@@ -196,16 +198,16 @@ showInfix _ (App fn _)        = printf "%s(...)" (show fn)
 
 --instance Show Expr where
 --    show = showInfix 0
---instance Show Expr where
---  show (N n)      = show n
---  show (C c)      = show c
---  show (S s)      = show s
---  show (e1 :+ e2) = printf "(%s + %s)" (show e1) (show e2)
---  show (e1 :- e2) = printf "(%s - %s)" (show e1) (show e2)
---  show (e1 :* e2) = printf "(%s * %s)" (show e1) (show e2)
---  show (e1 :/ e2) = printf "(%s / %s)" (show e1) (show e2)
---  show (e1 :^ e2) = printf "(%s ^ %s)" (show e1) (show e2)
---  show (App f e)  = printf " %s(%s)" (show f) (show e)
+instance Show Expr where
+ show (N n)      = show n
+ show (C c)      = show c
+ show (S s)      = show s
+ show (e1 :+ e2) = printf "(%s + %s)" (show e1) (show e2)
+ show (e1 :- e2) = printf "(%s - %s)" (show e1) (show e2)
+ show (e1 :* e2) = printf "(%s * %s)" (show e1) (show e2)
+ show (e1 :/ e2) = printf "(%s / %s)" (show e1) (show e2)
+ show (e1 :** e2) = printf "(%s ^ %s)" (show e1) (show e2)
+ show (App f e)  = printf " %s(%s)" (show f) (show e)
 
 
 -- |
@@ -231,7 +233,7 @@ symbols = nub . collect
     collect (e1 :- e2) = (collect e1) ++ (collect e2)
     collect (e1 :* e2) = (collect e1) ++ (collect e2)
     collect (e1 :/ e2) = (collect e1) ++ (collect e2)
-    collect (e1 :^ e2) = (collect e1) ++ (collect e2)
+    collect (e1 :** e2) = (collect e1) ++ (collect e2)
     collect (App _ e)  = collect e
 
 
@@ -254,6 +256,12 @@ sym' = S
 term :: Float -> String -> Expr
 term coeff var = (num coeff) :* (sym var)
 
+
+-- |
+term' :: Float -> String -> Float -> Expr
+term' coeff var pow 
+  | pow /= 0  = num coeff :* (sym var :** num pow)
+  | otherwise = num coeff :* sym var
 
 -- |
 e' :: Expr
@@ -281,5 +289,5 @@ cot e = App Cot e
 
 
 -- |
-square :: Expr -> Expr
-square e = e :^ num 2
+sq :: Expr -> Expr
+sq e = e :** num 2

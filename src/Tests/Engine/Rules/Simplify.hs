@@ -11,7 +11,7 @@ import Engine.Rules.Simplify
 
 --
 mkT :: (Expr, Expr) -> Test
-mkT (actual, expected) = (simpl $ actual, [] :: [Symbol]) ~?= (expected, [] :: [Symbol])
+mkT (actual, expected) = (simplify $ actual, [] :: [Symbol]) ~?= (expected, [] :: [Symbol])
 
 
 infixr 3 =?=
@@ -21,7 +21,7 @@ infixr 3 =?=
 -- 
 simplifyTestSuite :: [Test]
 simplifyTestSuite = [mkT $ num 1 + num 2 =?= num 3
-                    ,mkT $ sym "x" :^ num 0 =?= num 1
+                    ,mkT $ sym "x" :** num 0 =?= num 1
                     ,mkT $ num 2 + sym "x" =?= num 2 + sym "x"
                     ,mkT $ num 2 * sym "x" =?= num 2 * sym "x"
                     ,mkT $ num 2 * num 0 =?= num 0

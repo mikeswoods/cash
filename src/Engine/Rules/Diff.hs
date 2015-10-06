@@ -47,12 +47,12 @@ dxProduct (D (f, f')) (D (g, g')) = D (f * g, simplify $ (f * g') + (f' * g))
 
 -- | Quotient rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxQuotient :: Deriv -> Deriv -> Deriv
-dxQuotient (D (f, f')) (D (g, g')) = D (f / g, simplify $ ((f' * g) + (f * g')) / (square g))
+dxQuotient (D (f, f')) (D (g, g')) = D (f / g, simplify $ ((f' * g) + (f * g')) / (sq g))
 
 
 -- | Reciprocal rule
 dxRecip :: Deriv -> Deriv
-dxRecip (D (f, f')) = D (recip f, simplify $ -(f' / square f))
+dxRecip (D (f, f')) = D (recip f, simplify $ -(f' / sq f))
 
 
 -- | Power rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
@@ -92,32 +92,32 @@ dxCos (D (f, f')) = D (cos f, simplify $ -(sin f) * f')
 
 -- | asin
 dxASin :: Deriv -> Deriv
-dxASin (D (f, f')) = D (asin f, simplify $ (num 1 / (sqrt $ 1 - square f)) * f')
+dxASin (D (f, f')) = D (asin f, simplify $ (num 1 / (sqrt $ 1 - sq f)) * f')
 
 
 -- | acos
 dxACos :: Deriv -> Deriv
-dxACos (D (f, f')) = D (acos f, simplify $ -(num 1 / (sqrt $ 1 - square f)) * f')
+dxACos (D (f, f')) = D (acos f, simplify $ -(num 1 / (sqrt $ 1 - sq f)) * f')
 
 
 -- | atan
 dxATan :: Deriv -> Deriv
-dxATan (D (f, f')) = D (atan f, simplify $ (num 1 / square f) * f')
+dxATan (D (f, f')) = D (atan f, simplify $ (num 1 / sq f) * f')
 
 
 -- | asinh
 dxASinH :: Deriv -> Deriv
-dxASinH (D (f, f')) = D (asinh f, simplify $ num 1 / (square f + num 1) * f')
+dxASinH (D (f, f')) = D (asinh f, simplify $ num 1 / (sq f + num 1) * f')
 
 
 -- | acosh
 dxACosH :: Deriv -> Deriv
-dxACosH (D (f, f')) = D (acosh f, simplify $ (num 1 / (square f - num 1)) * f')
+dxACosH (D (f, f')) = D (acosh f, simplify $ (num 1 / (sq f - num 1)) * f')
 
 
 -- | atanh
 dxATanH :: Deriv -> Deriv
-dxATanH (D (f, f')) = D (atanh f, simplify $ (num 1 / (num 1 - square f)) * f')
+dxATanH (D (f, f')) = D (atanh f, simplify $ (num 1 / (num 1 - sq f)) * f')
 
 
 instance Num Deriv where
@@ -166,7 +166,7 @@ isConst (f :+ g) = (isConst f) && (isConst g)
 isConst (f :- g) = (isConst f) && (isConst g)
 isConst (f :* g) = (isConst f) && (isConst g)
 isConst (f :/ g) = (isConst f) && (isConst g)
-isConst (f :^ g) = (isConst f) && (isConst g)
+isConst (f :** g) = (isConst f) && (isConst g)
 isConst (App _ f)  = isConst f
 
 
@@ -179,7 +179,7 @@ liftD (f :+ g)      = (liftD f) + (liftD g)
 liftD (f :- g)      = (liftD f) - (liftD g)
 liftD (f :* g)      = (liftD f) * (liftD g)
 liftD (f :/ g)      = (liftD f) / (liftD g)
-liftD (f :^ g)      = (liftD f) ** (liftD g)
+liftD (f :** g)      = (liftD f) ** (liftD g)
 liftD (App Abs f)   = sin $ liftD f
 liftD (App Neg f)   = -(liftD f)
 liftD (App Log f)   = log $ liftD f
@@ -205,4 +205,6 @@ liftD (App ATanH f) = atanh $ liftD f
 
 -- |
 diff :: Symbol -> Expr -> Expr
-diff _ _ = undefined
+diff _ e = e'
+    where
+        D (_,e') = liftD e

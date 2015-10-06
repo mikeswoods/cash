@@ -2,14 +2,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Engine.Base
-    (simplify
-    ,simpl
+    (symbol
+    ,simplify
     ,diff
-    ,symbol)
+    )
 where
 
 
-import Engine.Expression (symbol, symbols)
-import Engine.Rules.Simplify (simplify, simpl)
+import Engine.Expression (symbol)
+import Engine.Rules.Simplify (simplify)
 import Engine.Rules.Diff (diff)
-
