@@ -21,7 +21,7 @@ module Engine.Expression
   ,ln
   ,sec
   ,csc
-  ,cot 
+  ,cot
   ,square)
 where
 
@@ -52,7 +52,7 @@ symbol = Symbol
 
 
 -- |
-data Constant = Pi 
+data Constant = Pi
               | E
               deriving (Eq, Ord)
 
@@ -133,7 +133,7 @@ data Expr = N Float
           | Expr :/ Expr
           | Expr :^ Expr
           | App Function Expr
-          deriving (Eq)
+          deriving (Eq, Show)
 
 
 instance Num Expr where
@@ -144,30 +144,33 @@ instance Num Expr where
   abs f            = App Abs f
   fromInteger e    = N (fromIntegral e :: Float)
   signum (N f)     = N (signum f)
-  -- signum (C c)     = N (signum f)
-
+  signum (C c)     = N (signum $ eval c)
+  signum _         = N 0
 
 instance Fractional Expr where
   fromRational n = num $ fromRational n
   (/)            = (:/)
+  recip e        = num 1 / e
 
 
 instance Floating Expr where
-  pi    = C Pi
-  exp   = App Exp
-  log   = App Log
-  sqrt  = App Sqrt
-  sin   = App Sin
-  cos   = App Cos
-  asin  = App ASin
-  acos  = App ACos
-  atan  = App ATan
-  sinh  = App SinH
-  cosh  = App CosH
-  tanh  = App TanH
-  asinh = App ASinH
-  acosh = App ACosH
-  atanh = App ATanH
+  pi          = C Pi
+  exp         = App Exp
+  log         = App Log
+  (**)        = (:^)
+  logBase x y =log y / log x
+  sqrt        = App Sqrt
+  sin         = App Sin
+  cos         = App Cos
+  asin        = App ASin
+  acos        = App ACos
+  atan        = App ATan
+  sinh        = App SinH
+  cosh        = App CosH
+  tanh        = App TanH
+  asinh       = App ASinH
+  acosh       = App ACosH
+  atanh       = App ATanH
 
 
 -- |
@@ -177,7 +180,7 @@ showInfix _ (C c)             = show c
 showInfix _ (S s)             = show s
 showInfix d (e1 :+ e2)        = printf "%s + %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1 :- e2)        = printf "%s - %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1@(N _) :* e2@(N _)) 
+showInfix d (e1@(N _) :* e2@(N _))
   | d == 0    = printf "%s * %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
   | otherwise = printf "(%s * %s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1 :* e2)        = printf "%s%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
@@ -190,9 +193,19 @@ showInfix d (App Neg n@(N _)) = printf "-%s" (showInfix (d+1) n)
 showInfix d (App fn e)        = printf "%s(%s)" (show fn) (showInfix (d+1) e)
 showInfix _ (App fn _)        = printf "%s(...)" (show fn)
 
--- |
-instance Show Expr where
-    show = showInfix 0
+
+--instance Show Expr where
+--    show = showInfix 0
+--instance Show Expr where
+--  show (N n)      = show n
+--  show (C c)      = show c
+--  show (S s)      = show s
+--  show (e1 :+ e2) = printf "(%s + %s)" (show e1) (show e2)
+--  show (e1 :- e2) = printf "(%s - %s)" (show e1) (show e2)
+--  show (e1 :* e2) = printf "(%s * %s)" (show e1) (show e2)
+--  show (e1 :/ e2) = printf "(%s / %s)" (show e1) (show e2)
+--  show (e1 :^ e2) = printf "(%s ^ %s)" (show e1) (show e2)
+--  show (App f e)  = printf " %s(%s)" (show f) (show e)
 
 
 -- |
@@ -227,17 +240,17 @@ num :: Float -> Expr
 num = N
 
 
--- | 
+-- |
 sym :: String -> Expr
 sym = S . Symbol
 
 
--- | 
+-- |
 sym' :: Symbol -> Expr
 sym' = S
 
 
--- | 
+-- |
 term :: Float -> String -> Expr
 term coeff var = (num coeff) :* (sym var)
 
