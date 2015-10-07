@@ -6,17 +6,15 @@ module Engine.Rules.Diff
 where
 
 import Text.Printf
-import Engine.Expression hiding (ln, sec, csc, cot)
+import Engine.Expression hiding (ln)
 import Engine.Rules.Simplify (simplify)
 
 
--- |
-newtype Deriv = D (Expr, Expr)
-              deriving (Eq)
+-- | A type encoding a function f and its derivative f', e.g. <f,f'>
+newtype Deriv = D (Expr, Expr) deriving (Eq)
 
 
 instance Show Deriv where
-
     show (D (f, f')) = printf "D { %s : %s }" (show f) (show f')
 
 
@@ -155,9 +153,9 @@ instance Num Deriv where
 
 
 instance Fractional Deriv where
-  fromRational n = D (num $ fromRational $ n, num 0)
-  (/)            = dxQuotient
-  recip          = dxRecip
+    fromRational n = D (num $ fromRational $ n, num 0)
+    (/)            = dxQuotient
+    recip          = dxRecip
 
 
 -- Formulas from
@@ -181,20 +179,15 @@ instance Floating Deriv where
     acosh = dxACosH
     atanh = dxATanH
 
+
 ln :: Deriv -> Deriv
 ln = log
 
 
-sec :: Deriv -> Deriv
-sec = dxSec
-
-
-csc :: Deriv -> Deriv
-csc = dxCsc
-
-
-cot :: Deriv -> Deriv
-cot = dxCot
+instance Trigonometric Deriv where
+  csc = dxCsc
+  sec = dxSec
+  cot = dxCot
 
 
 -- |

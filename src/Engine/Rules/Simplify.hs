@@ -1,11 +1,13 @@
 {-# OPTIONS -Wall -fwarn-tabs -fno-warn-type-defaults #-}
 module Engine.Rules.Simplify
-    (symbol
-    ,simplify
-    ,rootToPower
-    )
+  (symbol
+  ,simplify
+  ,simplifier
+  ,rootToPower
+  )
 where
 
+import Data.Function (fix)
 import Engine.Expression
 
 
@@ -35,7 +37,7 @@ simplCancellation (x :* N 1) = x
 simplCancellation (N 1 :* x) = x
 simplCancellation (_ :* N 0) = num 0
 simplCancellation (N 0 :* _) = num 0
-simplCancellation e            = e
+simplCancellation e          = e
 
 
 -- Perform basic arithmetical simplifications
@@ -56,6 +58,15 @@ simplArithmetic e@(((a :* b) :+ (a' :* c)) :/ d)
   | a == a' && a' == d && d /= num 0 = b + c
   | otherwise                        = e
 simplArithmetic ((a :/ b) :/ (c :/ d)) = (a * d) / (b * c)
+simplArithmetic e@((a :* x@(S _)) :+ (b :* y@(S _)))
+  | x == y    = (a + b) * x
+  | otherwise = e
+simplArithmetic e@((a :* x@(S _)) :- (b :* y@(S _)))
+  | x == y    = (a - b) * x
+  | otherwise = e
+simplArithmetic e@((a :* x@(S _)) :* (b :* y@(S _)))
+  | x == y    = (a * b) * (x ** num 2)
+  | otherwise = (a * b) * (x * y)
 simplArithmetic e = e
 
 
@@ -112,21 +123,16 @@ simplifier e = g e
 
 
 -- | Recursive simplifier that walks the expression tree
-simplRec :: Expr -> Expr
-simplRec (e1 :+ e2)  = simplifier (simplRec $ simplifier e1) :+ (simplRec $ simplifier e2)
-simplRec (e1 :- e2)  = simplifier (simplRec $ simplifier e1) :- (simplRec $ simplifier e2)
-simplRec (e1 :* e2)  = simplifier (simplRec $ simplifier e1) :* (simplRec $ simplifier e2)
-simplRec (e1 :/ e2)  = simplifier (simplRec $ simplifier e1) :/ (simplRec $ simplifier e2)
-simplRec (e1 :** e2) = simplifier (simplRec $ simplifier e1) :** (simplRec $ simplifier e2)
-simplRec e           = simplifier e
+simplifyAST :: Expr -> Expr
+simplifyAST (x :+ y)  = simplifier (simplifier . simplifyAST $ x) :+ (simplifier . simplifyAST $ y)
+simplifyAST (x :- y)  = simplifier (simplifier . simplifyAST $ x) :- (simplifier . simplifyAST $ y)
+simplifyAST (x :* y)  = simplifier (simplifier . simplifyAST $ x) :* (simplifier . simplifyAST $ y)
+simplifyAST (x :/ y)  = simplifier (simplifier . simplifyAST $ x) :/ (simplifier . simplifyAST $ y)
+simplifyAST (x :** y) = simplifier (simplifier . simplifyAST $ x) :** (simplifier . simplifyAST $ y)
+simplifyAST e         = simplifier e
 
 
 -- | Apply the simplifier until we reach a fixed point for the expression
 simplify :: Expr -> Expr
-simplify = run
-  where
-    run e = apply e (simplRec e)
-    apply e f
-      | e == f    = e
-      | otherwise = run f
+simplify = fix $ \_ -> simplifyAST
 
