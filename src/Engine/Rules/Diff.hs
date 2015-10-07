@@ -6,7 +6,7 @@ module Engine.Rules.Diff
 where
 
 import Text.Printf
-import Engine.Expression
+import Engine.Expression hiding (ln, sec, csc, cot)
 import Engine.Rules.Simplify (simplify)
 
 
@@ -75,6 +75,10 @@ dxLog :: Deriv -> Deriv
 dxLog (D (f, f'))  = D (log f, simplify $ f' / f)
 
 
+dxLn :: Deriv -> Deriv
+dxLn = dxLog
+
+
 -- | sqrt
 dxSqrt :: Deriv -> Deriv
 dxSqrt (D (f, f')) = D (sqrt f, simplify $ f' / (2.0 * sqrt f))
@@ -90,32 +94,52 @@ dxCos :: Deriv -> Deriv
 dxCos (D (f, f')) = D (cos f, simplify $ -(sin f) * f')
 
 
--- | asin
+-- | tan (http://www.math.com/tables/derivatives/tableof.htm)
+dxTan :: Deriv -> Deriv
+dxTan (D (f, f')) = D (sin f / cos f, simplify $ (sq $ sec f) * f')
+
+
+-- | csc (http://www.math.com/tables/derivatives/tableof.htm)
+dxCsc :: Deriv -> Deriv
+dxCsc (D (f, f')) = D (recip $ sin f, simplify $ (-(csc f) * cot f) * f')
+
+
+-- | sec (http://www.math.com/tables/derivatives/tableof.htm)
+dxSec :: Deriv -> Deriv
+dxSec (D (f, f')) = D (recip $ cos f, simplify $ (sec f * tan f) * f')
+
+
+-- | cot (http://www.math.com/tables/derivatives/tableof.htm)
+dxCot :: Deriv -> Deriv
+dxCot (D (f, f')) = D (recip $ tan f, simplify $ (-(sq $ csc f)) * f')
+
+
+-- | asin (http://www.math.com/tables/derivatives/tableof.htm)
 dxASin :: Deriv -> Deriv
 dxASin (D (f, f')) = D (asin f, simplify $ (num 1 / (sqrt $ 1 - sq f)) * f')
 
 
--- | acos
+-- | acos (http://www.math.com/tables/derivatives/tableof.htm)
 dxACos :: Deriv -> Deriv
 dxACos (D (f, f')) = D (acos f, simplify $ -(num 1 / (sqrt $ 1 - sq f)) * f')
 
 
--- | atan
+-- | atan (http://www.math.com/tables/derivatives/tableof.htm)
 dxATan :: Deriv -> Deriv
 dxATan (D (f, f')) = D (atan f, simplify $ (num 1 / sq f) * f')
 
 
--- | asinh
+-- | asinh (http://www.math.com/tables/derivatives/tableof.htm)
 dxASinH :: Deriv -> Deriv
 dxASinH (D (f, f')) = D (asinh f, simplify $ num 1 / (sq f + num 1) * f')
 
 
--- | acosh
+-- | acosh (http://www.math.com/tables/derivatives/tableof.htm)
 dxACosH :: Deriv -> Deriv
 dxACosH (D (f, f')) = D (acosh f, simplify $ (num 1 / (sq f - num 1)) * f')
 
 
--- | atanh
+-- | atanh (http://www.math.com/tables/derivatives/tableof.htm)
 dxATanH :: Deriv -> Deriv
 dxATanH (D (f, f')) = D (atanh f, simplify $ (num 1 / (num 1 - sq f)) * f')
 
@@ -147,6 +171,7 @@ instance Floating Deriv where
     sqrt  = dxSqrt
     sin   = dxSin
     cos   = dxCos
+    tan   = dxTan
     asin  = dxASin
     acos  = dxACos
     atan  = dxATan
@@ -155,6 +180,21 @@ instance Floating Deriv where
     asinh = dxASinH
     acosh = dxACosH
     atanh = dxATanH
+
+ln :: Deriv -> Deriv
+ln = log
+
+
+sec :: Deriv -> Deriv
+sec = dxSec
+
+
+csc :: Deriv -> Deriv
+csc = dxCsc
+
+
+cot :: Deriv -> Deriv
+cot = dxCot
 
 
 -- |
@@ -179,14 +219,14 @@ liftD (f :+ g)      = (liftD f) + (liftD g)
 liftD (f :- g)      = (liftD f) - (liftD g)
 liftD (f :* g)      = (liftD f) * (liftD g)
 liftD (f :/ g)      = (liftD f) / (liftD g)
-liftD (f :** g)      = (liftD f) ** (liftD g)
+liftD (f :** g)     = (liftD f) ** (liftD g)
 liftD (App Abs f)   = sin $ liftD f
 liftD (App Neg f)   = -(liftD f)
 liftD (App Log f)   = log $ liftD f
---liftD (App Ln f)    = liftD f
---liftD (App Sec f)    = liftD f
---liftD (App Csc f)    = liftD f
---liftD (App Cot f)    = liftD f
+liftD (App Ln f)    = ln $ liftD f
+liftD (App Sec f)   = sec $ liftD f
+liftD (App Csc f)   = csc $ liftD f
+liftD (App Cot f)   = cot $ liftD f
 liftD (App Exp f)   = exp $ liftD f
 liftD (App Sqrt f)  = sqrt $ liftD f
 liftD (App Sin f)   = sin $ liftD f
@@ -205,6 +245,6 @@ liftD (App ATanH f) = atanh $ liftD f
 
 -- |
 diff :: Symbol -> Expr -> Expr
-diff _ e = e'
+diff _ e = d
     where
-        D (_,e') = liftD e
+        D (_, d) = liftD e

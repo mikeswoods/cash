@@ -7,7 +7,6 @@ module Engine.Rules.Simplify
 where
 
 import Engine.Expression
-import Engine.Util
 
 
 -- |
@@ -16,7 +15,7 @@ rootToPower (App Sqrt e) = e :** (num 1 :/ num 2)
 rootToPower e            = e
 
 
--- Eval
+-- Evaluate numbers under basic arithmetical operations
 simplEval :: Expr -> Expr
 simplEval (N n :+ N m)  = num $ n + m
 simplEval (N n :- N m)  = num $ n - m
@@ -26,40 +25,67 @@ simplEval (N n :** N m) = num $ n ** m
 simplEval e             = e
 
 
--- Arithmetic
+-- Perform basic cancellation steps
+simplCancellation :: Expr -> Expr
+simplCancellation (x :+ N 0) = x
+simplCancellation (N 0 :+ x) = x
+simplCancellation (x :- N 0) = x
+simplCancellation (N 0 :- x) = -x
+simplCancellation (x :* N 1) = x
+simplCancellation (N 1 :* x) = x
+simplCancellation (_ :* N 0) = num 0
+simplCancellation (N 0 :* _) = num 0
+simplCancellation e            = e
+
+
+-- Perform basic arithmetical simplifications
 simplArithmetic :: Expr -> Expr
-simplArithmetic (x :+ N 0) = x
-simplArithmetic (N 0 :+ x) = x
-simplArithmetic (x :- N 0) = x
-simplArithmetic (N 0 :- x) = -x
-simplArithmetic (x :* N 1) = x
-simplArithmetic (N 1 :* x) = x
-simplArithmetic (_ :* N 0) = num 0
-simplArithmetic (N 0 :* _) = num 0
-simplArithmetic e            = e
+simplArithmetic (a :* (b :+ c)) = (a * b) + (a * c)
+simplArithmetic ((b :+ c) :* a) = (a * b) + (a * c)
+simplArithmetic (a :* (b :/ c)) = (a * b) / c
+simplArithmetic ((b :/ c) :* a) = (a * b) / c
+simplArithmetic ((a :/ b) :+ (c :/ d))
+  | b == d    = ((a * d) + (b * c)) / (b * d)
+  | otherwise = (a + c) / b
+simplArithmetic ((a :/ b) :/ c) = a / (b * c)
+simplArithmetic (a :/ (b :/ c)) = (a * c) / b
+simplArithmetic ((a :/ b) :- (c :/ d))
+  | b == d    = (a - c) / b
+  | otherwise = ((a * d) - (b * c)) / (b * d)
+simplArithmetic e@(((a :* b) :+ (a' :* c)) :/ d)
+  | a == a' && a' == d && d /= num 0 = b + c
+  | otherwise                        = e
+simplArithmetic ((a :/ b) :/ (c :/ d)) = (a * d) / (b * c)
+simplArithmetic e = e
 
 
--- | Exponents
+-- | Perform simplification based on properties of absolute values
+simplAbs :: Expr -> Expr
+simplAbs (App Abs (a :* b)) = (abs a) * (abs b)
+simplAbs e                  = e
+
+
+-- | Perform simplification based on properties of exponents
 simplExponents :: Expr -> Expr
-simplExponents (e :** N 1)    = e
+simplExponents (a :** N 1)    = a
 simplExponents (_ :** N 0)    = num 1
-simplExponents (e :** N (-1)) = recip e
-simplExponents e@(x :** N n)
-  | n < 0     = recip (x ** (num $ abs n))
-  | otherwise = e 
-simplExponents e@((x :** m) :* (x' :** n))
-  | x == x'   = x ** (m + n)
+simplExponents (a :** N (-1)) = recip a
+simplExponents e@(a :** N n)
+  | n < 0     = recip (a ** (num $ abs n))
   | otherwise = e
-simplExponents e@((x :** m) :/ (x' :** n))
-  | x == x'   = x ** (m - n)
+simplExponents e@((a :** m) :* (a' :** n))
+  | a == a'   = a ** (m + n)
   | otherwise = e
-simplExponents ((x :** m) :** n) = x ** (m * n)
-simplExponents ((x :* y) :** n)  = (x ** n) * (y ** n)
-simplExponents ((x :/ y) :** n)  = (x ** n) / (y ** n)
+simplExponents e@((a :** m) :/ (a' :** n))
+  | a == a'   = a ** (m - n)
+  | otherwise = e
+simplExponents ((a :** m) :** n) = a ** (m * n)
+simplExponents ((a :* y) :** n)  = (a ** n) * (y ** n)
+simplExponents ((a :/ y) :** n)  = (a ** n) / (y ** n)
 simplExponents e                 = e
 
 
--- |
+-- | Perform simplification based on properties of logarithms
 simplLogarithms :: Expr -> Expr
 simplLogarithms (App Log ((C E) :** x)) = x
 simplLogarithms (App Log (C E))         = num 1
@@ -71,12 +97,14 @@ simplLogarithms (App Exp (App Log x))   = x
 simplLogarithms e                       = e
 
 
--- |
+-- | Full simplifier
 simplifier :: Expr -> Expr
 simplifier e = g e
   where
     fs = [simplEval
+         ,simplCancellation
          ,simplArithmetic
+         ,simplAbs
          ,simplExponents
          ,simplLogarithms
          ]

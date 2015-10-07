@@ -19,11 +19,12 @@ module Engine.Expression
   ,sym'
   ,term
   ,term'
+  ,sq
   ,ln
   ,sec
   ,csc
   ,cot
-  ,sq)
+  )
 where
 
 
@@ -259,9 +260,10 @@ term coeff var = (num coeff) :* (sym var)
 
 -- |
 term' :: Float -> String -> Float -> Expr
-term' coeff var pow 
+term' coeff var pow
   | pow /= 0  = num coeff :* (sym var :** num pow)
   | otherwise = num coeff :* sym var
+
 
 -- |
 e' :: Expr
