@@ -1,7 +1,6 @@
 {-# OPTIONS -Wall -fhelpful-errors -fno-warn-unused-binds #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-
 module Engine.Rules.Diff
 where
 
@@ -236,7 +235,16 @@ liftD (App ACosH f) = acosh $ liftD f
 liftD (App ATanH f) = atanh $ liftD f
 
 
--- |
+-- | Differentiate with respect to the first symbol found in the expression
+diffF :: Expr -> Expr
+diffF e = diff firstSym e
+    where
+        firstSym = case symbols e of
+                     (s:_) -> s
+                     []    -> (symbol "x")
+
+
+-- | Differentiate with respect to a given symbol
 diff :: Symbol -> Expr -> Expr
 diff _ e = d
     where

@@ -3,5 +3,21 @@
 module Algebra
 where
 
-
-import Engine.Base
+import Engine.Base (symbol
+                   ,symbols
+                   ,e'
+                   ,num
+                   ,sym
+                   ,sym'
+                   ,term
+                   ,term'
+                   ,sq
+                   ,ln
+                   ,sec
+                   ,csc
+                   ,cot
+                   ,simplify
+                   ,simplifier
+                   ,diff
+                   ,diffF
+                   )

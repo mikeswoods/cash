@@ -22,7 +22,9 @@ module Engine.Base
     ,csc
     ,cot
     ,simplify
+    ,simplifier
     ,diff
+    ,diffF
     )
 where
 
@@ -49,7 +51,9 @@ import Engine.Expression (Constant
                          )
 
 import Engine.Rules.Simplify (simplify
+                             ,simplifier
                              )
 
 import Engine.Rules.Diff (diff
-                         ,)
+                         ,diffF
+                         )

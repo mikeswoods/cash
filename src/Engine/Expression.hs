@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-
 module Engine.Expression
   (Constant(..)
   ,Symbol(..)
@@ -192,7 +191,7 @@ instance Trigonometric Expr where
 
 -- | Show an expression in infix form
 showInfix :: Int -> Expr -> String
-showInfix _ (N v)      = prettyNumber v
+showInfix _ (N n)      = prettyNumber n
 showInfix _ (C c)      = show c
 showInfix _ (S s)      = show s
 showInfix d (e1 :+ e2) = printf "%s + %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
@@ -208,21 +207,20 @@ showInfix d (e1 :** e2@(S _)) = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix
 showInfix d (e1 :** e2)       = printf "(%s)^(%s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (App Neg n@(N _)) = printf "-%s" (showInfix (d+1) n)
 showInfix d (App fn e)        = printf "%s(%s)" (show fn) (showInfix (d+1) e)
-showInfix _ (App fn _)        = printf "%s(...)" (show fn)
 
 
 --instance Show Expr where
 --    show = showInfix 0
 instance Show Expr where
- show (N n)      = show n
- show (C c)      = show c
- show (S s)      = show s
- show (e1 :+ e2) = printf "(%s + %s)" (show e1) (show e2)
- show (e1 :- e2) = printf "(%s - %s)" (show e1) (show e2)
- show (e1 :* e2) = printf "(%s * %s)" (show e1) (show e2)
- show (e1 :/ e2) = printf "(%s / %s)" (show e1) (show e2)
- show (e1 :** e2) = printf "(%s ^ %s)" (show e1) (show e2)
- show (App f e)  = printf " %s(%s)" (show f) (show e)
+ show (N n)       = prettyNumber n
+ show (C c)       = show c
+ show (S s)       = show s
+ show (e1 :+ e2)  = printf "(%s + %s)" (show e1) (show e2)
+ show (e1 :- e2)  = printf "(%s - %s)" (show e1) (show e2)
+ show (e1 :* e2)  = printf "(%s * %s)" (show e1) (show e2)
+ show (e1 :/ e2)  = printf "(%s / %s)" (show e1) (show e2)
+ show (e1 :** e2) = printf "(%s^%s)" (show e1) (show e2)
+ show (App f e)   = printf " %s(%s)" (show f) (show e)
 
 
 -- | Tests if the expression is associative

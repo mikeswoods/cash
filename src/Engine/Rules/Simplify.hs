@@ -44,11 +44,16 @@ simplCancellation e          = e
 simplArithmetic :: Expr -> Expr
 simplArithmetic (a :* (b :+ c)) = (a * b) + (a * c)
 simplArithmetic ((b :+ c) :* a) = (a * b) + (a * c)
+simplArithmetic (a :* (b :- c)) = (a * b) - (a * c)
+simplArithmetic ((b :- c) :* a) = (a * b) - (a * c)
+simplArithmetic (a :* (b :* c)) = (a * b) + (a * c)
+simplArithmetic ((b :* c) :* a) = (a * b) + (a * c)
 simplArithmetic (a :* (b :/ c)) = (a * b) / c
 simplArithmetic ((b :/ c) :* a) = (a * b) / c
 simplArithmetic ((a :/ b) :+ (c :/ d))
   | b == d    = ((a * d) + (b * c)) / (b * d)
   | otherwise = (a + c) / b
+simplArithmetic ((a :/ b) :/ (c :/ d)) = (a * d) / (b * c)
 simplArithmetic ((a :/ b) :/ c) = a / (b * c)
 simplArithmetic (a :/ (b :/ c)) = (a * c) / b
 simplArithmetic ((a :/ b) :- (c :/ d))
@@ -57,14 +62,13 @@ simplArithmetic ((a :/ b) :- (c :/ d))
 simplArithmetic e@(((a :* b) :+ (a' :* c)) :/ d)
   | a == a' && a' == d && d /= num 0 = b + c
   | otherwise                        = e
-simplArithmetic ((a :/ b) :/ (c :/ d)) = (a * d) / (b * c)
 simplArithmetic e@((a :* x@(S _)) :+ (b :* y@(S _)))
   | x == y    = (a + b) * x
   | otherwise = e
 simplArithmetic e@((a :* x@(S _)) :- (b :* y@(S _)))
   | x == y    = (a - b) * x
   | otherwise = e
-simplArithmetic e@((a :* x@(S _)) :* (b :* y@(S _)))
+simplArithmetic ((a :* x@(S _)) :* (b :* y@(S _)))
   | x == y    = (a * b) * (x ** num 2)
   | otherwise = (a * b) * (x * y)
 simplArithmetic e = e
@@ -124,12 +128,13 @@ simplifier e = g e
 
 -- | Recursive simplifier that walks the expression tree
 simplifyAST :: Expr -> Expr
-simplifyAST (x :+ y)  = simplifier (simplifier . simplifyAST $ x) :+ (simplifier . simplifyAST $ y)
-simplifyAST (x :- y)  = simplifier (simplifier . simplifyAST $ x) :- (simplifier . simplifyAST $ y)
-simplifyAST (x :* y)  = simplifier (simplifier . simplifyAST $ x) :* (simplifier . simplifyAST $ y)
-simplifyAST (x :/ y)  = simplifier (simplifier . simplifyAST $ x) :/ (simplifier . simplifyAST $ y)
-simplifyAST (x :** y) = simplifier (simplifier . simplifyAST $ x) :** (simplifier . simplifyAST $ y)
-simplifyAST e         = simplifier e
+simplifyAST (x :+ y)    = simplifier $ ((simplifyAST $ simplifier x) +  (simplifyAST $ simplifier y))
+simplifyAST (x :- y)    = simplifier $ ((simplifyAST $ simplifier x) -  (simplifyAST $ simplifier y))
+simplifyAST (x :* y)    = simplifier $ ((simplifyAST $ simplifier x) *  (simplifyAST $ simplifier y))
+simplifyAST (x :/ y)    = simplifier $ ((simplifyAST $ simplifier x) /  (simplifyAST $ simplifier y))
+simplifyAST (x :** y)   = simplifier $ ((simplifyAST $ simplifier x) ** (simplifyAST $ simplifier y))
+simplifyAST (App Neg e) = -(simplifier e)
+simplifyAST e           = simplifier e
 
 
 -- | Apply the simplifier until we reach a fixed point for the expression
