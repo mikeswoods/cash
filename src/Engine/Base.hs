@@ -21,8 +21,8 @@ module Engine.Base
     ,sec
     ,csc
     ,cot
+    ,simple
     ,simplify
-    ,simplifier
     ,diff
     ,diffF
     )
@@ -50,8 +50,8 @@ import Engine.Expression (Constant
                          ,cot
                          )
 
-import Engine.Rules.Simplify (simplify
-                             ,simplifier
+import Engine.Rules.Simplify (simple
+                             ,simplify
                              )
 
 import Engine.Rules.Diff (diff

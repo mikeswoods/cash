@@ -3,7 +3,8 @@
 module Algebra
 where
 
-import Engine.Base (symbol
+import Engine.Base (Expr
+                   ,symbol
                    ,symbols
                    ,e'
                    ,num
@@ -16,8 +17,8 @@ import Engine.Base (symbol
                    ,sec
                    ,csc
                    ,cot
+                   ,simple
                    ,simplify
-                   ,simplifier
                    ,diff
                    ,diffF
                    )

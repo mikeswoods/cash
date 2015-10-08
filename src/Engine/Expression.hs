@@ -191,36 +191,35 @@ instance Trigonometric Expr where
 
 -- | Show an expression in infix form
 showInfix :: Int -> Expr -> String
-showInfix _ (N n)      = prettyNumber n
-showInfix _ (C c)      = show c
-showInfix _ (S s)      = show s
-showInfix d (e1 :+ e2) = printf "%s + %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :- e2) = printf "%s - %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix _ (N n)                   = prettyNumber n
+showInfix _ (C c)                   = show c
+showInfix _ (S s)                   = show s
+showInfix d (e1 :+ e2)              = printf "%s + %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :- e2)              = printf "%s - %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1@(N _) :* e2@(N _))
   | d == 0    = printf "%s * %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
   | otherwise = printf "(%s * %s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :* e2)        = printf "%s%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :/ e2)        = printf "%s / %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :** e2@(N _)) = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :** e2@(C _)) = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :** e2@(S _)) = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :** e2)       = printf "(%s)^(%s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (App Neg n@(N _)) = printf "-%s" (showInfix (d+1) n)
-showInfix d (App fn e)        = printf "%s(%s)" (show fn) (showInfix (d+1) e)
+showInfix d (e1 :* e2)              = printf "%s * %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :/ e2)              = printf "%s / %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(N _) :** e2@(N _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(N _) :** e2@(C _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(N _) :** e2@(S _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(C _) :** e2@(N _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(C _) :** e2@(C _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(C _) :** e2@(S _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(S _) :** e2@(N _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(S _) :** e2@(C _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(S _) :** e2@(S _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(N _))       = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(C _))       = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2@(S _))       = printf "(%s)^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :** e2)             = printf "(%s)^(%s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (App Neg n@(N _))       = printf "-%s" (showInfix (d+1) n)
+showInfix d (App fn e)              = printf "%s(%s)" (show fn) (showInfix (d+1) e)
 
 
---instance Show Expr where
---    show = showInfix 0
 instance Show Expr where
- show (N n)       = prettyNumber n
- show (C c)       = show c
- show (S s)       = show s
- show (e1 :+ e2)  = printf "(%s + %s)" (show e1) (show e2)
- show (e1 :- e2)  = printf "(%s - %s)" (show e1) (show e2)
- show (e1 :* e2)  = printf "(%s * %s)" (show e1) (show e2)
- show (e1 :/ e2)  = printf "(%s / %s)" (show e1) (show e2)
- show (e1 :** e2) = printf "(%s^%s)" (show e1) (show e2)
- show (App f e)   = printf " %s(%s)" (show f) (show e)
+   show = showInfix 0
 
 
 -- | Tests if the expression is associative
@@ -239,15 +238,15 @@ symbols :: Expr -> [Symbol]
 symbols = nub . collect
   where
     collect :: Expr -> [Symbol]
-    collect (N _)      = []
-    collect (C _)      = []
-    collect (S s)      = [s]
-    collect (e1 :+ e2) = (collect e1) ++ (collect e2)
-    collect (e1 :- e2) = (collect e1) ++ (collect e2)
-    collect (e1 :* e2) = (collect e1) ++ (collect e2)
-    collect (e1 :/ e2) = (collect e1) ++ (collect e2)
+    collect (N _)       = []
+    collect (C _)       = []
+    collect (S s)       = [s]
+    collect (e1 :+ e2)  = (collect e1) ++ (collect e2)
+    collect (e1 :- e2)  = (collect e1) ++ (collect e2)
+    collect (e1 :* e2)  = (collect e1) ++ (collect e2)
+    collect (e1 :/ e2)  = (collect e1) ++ (collect e2)
     collect (e1 :** e2) = (collect e1) ++ (collect e2)
-    collect (App _ e)  = collect e
+    collect (App _ e)   = collect e
 
 
 -- | Create a numeric expression from a float

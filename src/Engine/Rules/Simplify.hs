@@ -1,13 +1,12 @@
 {-# OPTIONS -Wall -fwarn-tabs -fno-warn-type-defaults #-}
 module Engine.Rules.Simplify
   (symbol
+  ,simple
   ,simplify
-  ,simplifier
   ,rootToPower
   )
 where
 
-import Data.Function (fix)
 import Engine.Expression
 
 
@@ -42,6 +41,7 @@ simplCancellation e          = e
 
 -- Perform basic arithmetical simplifications
 simplArithmetic :: Expr -> Expr
+simplArithmetic (a :+ (App Neg b)) = a - b
 simplArithmetic (a :* (b :+ c)) = (a * b) + (a * c)
 simplArithmetic ((b :+ c) :* a) = (a * b) + (a * c)
 simplArithmetic (a :* (b :- c)) = (a * b) - (a * c)
@@ -72,6 +72,14 @@ simplArithmetic ((a :* x@(S _)) :* (b :* y@(S _)))
   | x == y    = (a * b) * (x ** num 2)
   | otherwise = (a * b) * (x * y)
 simplArithmetic e = e
+
+
+-- Merge like terms
+simplLikeTerms :: Expr -> Expr
+simplLikeTerms e@(a :* b)
+  | a == b    = a ** 2 
+  | otherwise = e
+simplLikeTerms e = e
 
 
 -- | Perform simplification based on properties of absolute values
@@ -112,32 +120,31 @@ simplLogarithms (App Exp (App Log x))   = x
 simplLogarithms e                       = e
 
 
--- | Full simplifier
-simplifier :: Expr -> Expr
-simplifier e = g e
+-- | Apply the simplifier until we reach a fixed point for the expression
+simple :: Expr -> Expr
+simple e = run e $ applyRules e
   where
-    fs = [simplEval
-         ,simplCancellation
-         ,simplArithmetic
-         ,simplAbs
-         ,simplExponents
-         ,simplLogarithms
-         ]
-    g  = foldr (.) id  fs
+    rules = [simplEval
+            ,simplCancellation
+            ,simplArithmetic
+            ,simplLikeTerms
+            ,simplAbs
+            ,simplExponents
+            ,simplLogarithms
+            ]
+    applyRules = foldr (.) id $ reverse rules
+    run x x' 
+      | x == x'   = x
+      | otherwise = run x' $ applyRules x'
 
 
 -- | Recursive simplifier that walks the expression tree
-simplifyAST :: Expr -> Expr
-simplifyAST (x :+ y)    = simplifier $ ((simplifyAST $ simplifier x) +  (simplifyAST $ simplifier y))
-simplifyAST (x :- y)    = simplifier $ ((simplifyAST $ simplifier x) -  (simplifyAST $ simplifier y))
-simplifyAST (x :* y)    = simplifier $ ((simplifyAST $ simplifier x) *  (simplifyAST $ simplifier y))
-simplifyAST (x :/ y)    = simplifier $ ((simplifyAST $ simplifier x) /  (simplifyAST $ simplifier y))
-simplifyAST (x :** y)   = simplifier $ ((simplifyAST $ simplifier x) ** (simplifyAST $ simplifier y))
-simplifyAST (App Neg e) = -(simplifier e)
-simplifyAST e           = simplifier e
-
-
--- | Apply the simplifier until we reach a fixed point for the expression
 simplify :: Expr -> Expr
-simplify = fix $ \_ -> simplifyAST
+simplify (x :+ y)    = simple $ ((simplify $ simple x) +  (simplify $ simple y))
+simplify (x :- y)    = simple $ ((simplify $ simple x) -  (simplify $ simple y))
+simplify (x :* y)    = simple $ ((simplify $ simple x) *  (simplify $ simple y))
+simplify (x :/ y)    = simple $ ((simplify $ simple x) /  (simplify $ simple y))
+simplify (x :** y)   = simple $ ((simplify $ simple x) ** (simplify $ simple y))
+simplify (App Neg e) = App Neg $ simplify e
+simplify e           = simple e
 

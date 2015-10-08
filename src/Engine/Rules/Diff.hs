@@ -29,32 +29,32 @@ dxSym s = D (sym' s, num 1)
 
 -- | Sum rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxSum :: Deriv -> Deriv -> Deriv
-dxSum (D (f, f')) (D (g, g')) = D (f + g, simplify $ f' + g')
+dxSum (D (f, f')) (D (g, g')) = D (f + g, f' + g')
 
 
 -- | Difference rule  (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxDifference :: Deriv -> Deriv -> Deriv
-dxDifference (D (f, f')) (D (g, g')) = D (f - g, simplify $ f' - g')
+dxDifference (D (f, f')) (D (g, g')) = D (f - g, f' - g')
 
 
 -- | Product rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxProduct :: Deriv -> Deriv -> Deriv
-dxProduct (D (f, f')) (D (g, g')) = D (f * g, simplify $ (f * g') + (f' * g))
+dxProduct (D (f, f')) (D (g, g')) = D (f * g, (f * g') + (f' * g))
 
 
 -- | Quotient rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxQuotient :: Deriv -> Deriv -> Deriv
-dxQuotient (D (f, f')) (D (g, g')) = D (f / g, simplify $ ((f' * g) + (f * g')) / (sq g))
+dxQuotient (D (f, f')) (D (g, g')) = D (f / g, ((f' * g) + (f * g')) / (sq g))
 
 
 -- | Reciprocal rule
 dxRecip :: Deriv -> Deriv
-dxRecip (D (f, f')) = D (recip f, simplify $ -(f' / sq f))
+dxRecip (D (f, f')) = D (recip f, -(f' / sq f))
 
 
 -- | Power rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxPower :: Deriv -> Deriv -> Deriv
-dxPower (D (f, f')) (D (k, _)) = D (f ** k, simplify $ (k * (f ** (k - num 1))) * f')
+dxPower (D (f, f')) (D (k, _)) = D (f ** k, (k * (f ** (k - num 1))) * f')
 
 
 -- | abs (https://en.wikipedia.org/wiki/Automatic_differentiation)
@@ -64,12 +64,12 @@ dxAbs (D (f, f')) = D (abs f, f' * signum f)
 
 -- | exp (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxExp :: Deriv -> Deriv
-dxExp (D (f, f')) = D (exp f, simplify $ f' * exp f)
+dxExp (D (f, f')) = D (exp f, f' * exp f)
 
 
 -- | log (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxLog :: Deriv -> Deriv
-dxLog (D (f, f'))  = D (log f, simplify $ f' / f)
+dxLog (D (f, f'))  = D (log f, f' / f)
 
 
 dxLn :: Deriv -> Deriv
@@ -78,67 +78,67 @@ dxLn = dxLog
 
 -- | sqrt
 dxSqrt :: Deriv -> Deriv
-dxSqrt (D (f, f')) = D (sqrt f, simplify $ f' / (2.0 * sqrt f))
+dxSqrt (D (f, f')) = D (sqrt f, f' / (2.0 * sqrt f))
 
 
 -- | sin (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxSin :: Deriv -> Deriv
-dxSin (D (f, f')) = D (sin f, simplify $ (cos f) * f')
+dxSin (D (f, f')) = D (sin f, (cos f) * f')
 
 
 -- | cos (https://en.wikipedia.org/wiki/Automatic_differentiation)
 dxCos :: Deriv -> Deriv
-dxCos (D (f, f')) = D (cos f, simplify $ -(sin f) * f')
+dxCos (D (f, f')) = D (cos f, -(sin f) * f')
 
 
 -- | tan (http://www.math.com/tables/derivatives/tableof.htm)
 dxTan :: Deriv -> Deriv
-dxTan (D (f, f')) = D (sin f / cos f, simplify $ (sq $ sec f) * f')
+dxTan (D (f, f')) = D (sin f / cos f, (sq $ sec f) * f')
 
 
 -- | csc (http://www.math.com/tables/derivatives/tableof.htm)
 dxCsc :: Deriv -> Deriv
-dxCsc (D (f, f')) = D (recip $ sin f, simplify $ (-(csc f) * cot f) * f')
+dxCsc (D (f, f')) = D (recip $ sin f, (-(csc f) * cot f) * f')
 
 
 -- | sec (http://www.math.com/tables/derivatives/tableof.htm)
 dxSec :: Deriv -> Deriv
-dxSec (D (f, f')) = D (recip $ cos f, simplify $ (sec f * tan f) * f')
+dxSec (D (f, f')) = D (recip $ cos f, (sec f * tan f) * f')
 
 
 -- | cot (http://www.math.com/tables/derivatives/tableof.htm)
 dxCot :: Deriv -> Deriv
-dxCot (D (f, f')) = D (recip $ tan f, simplify $ (-(sq $ csc f)) * f')
+dxCot (D (f, f')) = D (recip $ tan f, (-(sq $ csc f)) * f')
 
 
 -- | asin (http://www.math.com/tables/derivatives/tableof.htm)
 dxASin :: Deriv -> Deriv
-dxASin (D (f, f')) = D (asin f, simplify $ (num 1 / (sqrt $ 1 - sq f)) * f')
+dxASin (D (f, f')) = D (asin f, (num 1 / (sqrt $ 1 - sq f)) * f')
 
 
 -- | acos (http://www.math.com/tables/derivatives/tableof.htm)
 dxACos :: Deriv -> Deriv
-dxACos (D (f, f')) = D (acos f, simplify $ -(num 1 / (sqrt $ 1 - sq f)) * f')
+dxACos (D (f, f')) = D (acos f, -(num 1 / (sqrt $ 1 - sq f)) * f')
 
 
 -- | atan (http://www.math.com/tables/derivatives/tableof.htm)
 dxATan :: Deriv -> Deriv
-dxATan (D (f, f')) = D (atan f, simplify $ (num 1 / sq f) * f')
+dxATan (D (f, f')) = D (atan f, (num 1 / sq f) * f')
 
 
 -- | asinh (http://www.math.com/tables/derivatives/tableof.htm)
 dxASinH :: Deriv -> Deriv
-dxASinH (D (f, f')) = D (asinh f, simplify $ num 1 / (sq f + num 1) * f')
+dxASinH (D (f, f')) = D (asinh f, num 1 / (sq f + num 1) * f')
 
 
 -- | acosh (http://www.math.com/tables/derivatives/tableof.htm)
 dxACosH :: Deriv -> Deriv
-dxACosH (D (f, f')) = D (acosh f, simplify $ (num 1 / (sq f - num 1)) * f')
+dxACosH (D (f, f')) = D (acosh f, (num 1 / (sq f - num 1)) * f')
 
 
 -- | atanh (http://www.math.com/tables/derivatives/tableof.htm)
 dxATanH :: Deriv -> Deriv
-dxATanH (D (f, f')) = D (atanh f, simplify $ (num 1 / (num 1 - sq f)) * f')
+dxATanH (D (f, f')) = D (atanh f, (num 1 / (num 1 - sq f)) * f')
 
 
 instance Num Deriv where
