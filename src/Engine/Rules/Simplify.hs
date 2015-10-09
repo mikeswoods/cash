@@ -3,6 +3,7 @@ module Engine.Rules.Simplify
   (symbol
   ,simple
   ,simplify
+  ,simplCancelSigns
   ,rootToPower
   )
 where
@@ -26,6 +27,13 @@ simplEval (N n :** N m) = num $ n ** m
 simplEval e             = e
 
 
+simplCancelSigns :: Expr -> Expr
+simplCancelSigns (App Neg (App Neg a)) = a
+simplCancelSigns (a :+ (App Neg b))    = a - b
+simplCancelSigns (a :- (App Neg b))    = a + b
+simplCancelSigns e                     = e
+
+
 -- Perform basic cancellation steps
 simplCancellation :: Expr -> Expr
 simplCancellation (x :+ N 0) = x
@@ -41,13 +49,12 @@ simplCancellation e          = e
 
 -- Perform basic arithmetical simplifications
 simplArithmetic :: Expr -> Expr
-simplArithmetic (a :+ (App Neg b)) = a - b
+simplArithmetic ((App Neg a) :* b) = -(a :* b)
+simplArithmetic (a :* (App Neg b)) = -(a :* b)
 simplArithmetic (a :* (b :+ c)) = (a * b) + (a * c)
 simplArithmetic ((b :+ c) :* a) = (a * b) + (a * c)
 simplArithmetic (a :* (b :- c)) = (a * b) - (a * c)
 simplArithmetic ((b :- c) :* a) = (a * b) - (a * c)
-simplArithmetic (a :* (b :* c)) = (a * b) + (a * c)
-simplArithmetic ((b :* c) :* a) = (a * b) + (a * c)
 simplArithmetic (a :* (b :/ c)) = (a * b) / c
 simplArithmetic ((b :/ c) :* a) = (a * b) / c
 simplArithmetic ((a :/ b) :+ (c :/ d))
@@ -120,19 +127,44 @@ simplLogarithms (App Exp (App Log x))   = x
 simplLogarithms e                       = e
 
 
+-- Simplification rules
+simplifyRules :: [Expr -> Expr]
+simplifyRules = [simplLogarithms
+                ,simplExponents
+                ,simplAbs
+                ,simplLikeTerms
+                ,simplArithmetic
+                ,simplEval
+                ,simplCancellation
+                ,simplCancelSigns
+                ]
+
+
+-- | Reorders the expression tree such that constants, numbers, and symbols
+-- | are on the left hand side of any associatve sub-expression
+reorderTree :: Expr -> Expr
+reorderTree n@(N _)     = n
+reorderTree c@(C _)     = c
+reorderTree s@(S _)     = s
+reorderTree e@(x :+ y)
+  | isPrimitive x = (x :+ y)
+  | isPrimitive y = (y :+ x)
+  | otherwise     = e
+reorderTree e@(_ :- _)  = e
+reorderTree e@(x :* y)
+  | isPrimitive x = (x :* y)
+  | isPrimitive y = (y :* x)
+  | otherwise     = e
+reorderTree e@(_ :/ _)  = e
+reorderTree e@(_ :** _) = e
+reorderTree e@(App _ _) = e
+
+
 -- | Apply the simplifier until we reach a fixed point for the expression
 simple :: Expr -> Expr
-simple e = run e $ applyRules e
+simple e = reorderTree $ run e $ applyRules e
   where
-    rules = [simplEval
-            ,simplCancellation
-            ,simplArithmetic
-            ,simplLikeTerms
-            ,simplAbs
-            ,simplExponents
-            ,simplLogarithms
-            ]
-    applyRules = foldr (.) id $ reverse rules
+    applyRules = foldr (.) id $ simplifyRules
     run x x' 
       | x == x'   = x
       | otherwise = run x' $ applyRules x'

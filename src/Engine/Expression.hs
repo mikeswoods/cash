@@ -10,7 +10,8 @@ module Engine.Expression
   ,Expr(..)
   ,Eval(..)
   ,Trigonometric(..)
-  ,isAssocExpr
+  ,isPrimitive
+  ,isAssoc
   ,symbol
   ,symbols
   ,e'
@@ -196,10 +197,11 @@ showInfix _ (C c)                   = show c
 showInfix _ (S s)                   = show s
 showInfix d (e1 :+ e2)              = printf "%s + %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1 :- e2)              = printf "%s - %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1@(N _) :* e2@(N _))
-  | d == 0    = printf "%s * %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
-  | otherwise = printf "(%s * %s)" (showInfix (d+1) e1) (showInfix (d+1) e2)
-showInfix d (e1 :* e2)              = printf "%s * %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(N _) :* e2@(N _))  = printf "%s·%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1@(N _) :* e2@(S _))  = printf "%s%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
+showInfix d (e1 :* e2)              = printf fmt (showInfix (d+1) e1) (showInfix (d+1) e2)
+  where 
+    fmt = if d == 0 then "%s * %s" else "(%s * %s)"
 showInfix d (e1 :/ e2)              = printf "%s / %s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1@(N _) :** e2@(N _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
 showInfix d (e1@(N _) :** e2@(C _)) = printf "%s^%s" (showInfix (d+1) e1) (showInfix (d+1) e2)
@@ -222,15 +224,30 @@ instance Show Expr where
    show = showInfix 0
 
 
+-- | Tests if the expression is considered a primitive expression. Primitive
+-- | expressions are constants, numbers, symbols, and {constant|numbers|symbol} :* {constant|symbol}
+isPrimitive :: Expr -> Bool
+isPrimitive (N _)             = True
+isPrimitive (C _)             = True
+isPrimitive (S _)             = True
+isPrimitive ((N _ ) :* (S _)) = True
+isPrimitive ((C _ ) :* (S _)) = True
+isPrimitive ((S _ ) :* (S _)) = True
+isPrimitive ((N _ ) :* (C _)) = True
+isPrimitive ((C _ ) :* (C _)) = True
+isPrimitive ((S _ ) :* (C _)) = True
+isPrimitive _                 = False
+
+
 -- | Tests if the expression is associative
-isAssocExpr :: Expr -> Bool
-isAssocExpr (N _)     = True
-isAssocExpr (C _)     = True
-isAssocExpr (S _)     = True
-isAssocExpr (App _ _) = True
-isAssocExpr (_ :+ _)  = True
-isAssocExpr (_ :* _)  = True
-isAssocExpr _         = False
+isAssoc :: Expr -> Bool
+isAssoc (N _)     = True
+isAssoc (C _)     = True
+isAssoc (S _)     = True
+isAssoc (App _ _) = True
+isAssoc (_ :+ _)  = True
+isAssoc (_ :* _)  = True
+isAssoc _         = False
 
 
 -- | Extract all unique symbols from an expression

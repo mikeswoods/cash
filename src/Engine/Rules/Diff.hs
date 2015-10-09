@@ -49,7 +49,7 @@ dxQuotient (D (f, f')) (D (g, g')) = D (f / g, ((f' * g) + (f * g')) / (sq g))
 
 -- | Reciprocal rule
 dxRecip :: Deriv -> Deriv
-dxRecip (D (f, f')) = D (recip f, -(f' / sq f))
+dxRecip (D (f, f')) = D (recip f, (-(f')) / sq f)
 
 
 -- | Power rule (https://en.wikipedia.org/wiki/Automatic_differentiation)
@@ -153,7 +153,8 @@ instance Num Deriv where
 
 instance Fractional Deriv where
     fromRational n = D (num $ fromRational $ n, num 0)
-    (/)            = dxQuotient
+    1 / y          = dxRecip y
+    x / y          = dxQuotient x y
     recip          = dxRecip
 
 

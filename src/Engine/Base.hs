@@ -7,7 +7,8 @@ module Engine.Base
     ,Function
     ,Expr
     ,Eval(..)
-    ,isAssocExpr
+    ,isPrimitive
+    ,isAssoc
     ,symbol
     ,symbols
     ,e'
@@ -34,7 +35,8 @@ import Engine.Expression (Constant
                          ,Function
                          ,Expr
                          ,Eval(..)
-                         ,isAssocExpr
+                         ,isPrimitive
+                         ,isAssoc
                          ,symbol
                          ,symbols
                          ,e'
