@@ -1,34 +1,147 @@
 {-# OPTIONS -Wall -fhelpful-errors -fno-warn-unused-binds #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Tests.Engine.Rules.Simplify
-    (simplifyTestSuite)
+    (
+     runSimplifyTestSuite
+    ,equivAfter
+    ,equiv
+    --  prop_evalEquivAfterSimplifyLogarithmsPure
+    -- ,prop_evalEquivAfterSimplifyExponentsPure
+    -- ,prop_evalEquivAfterSimplifyAbsolutesPure
+    -- ,prop_evalEquivAfterSimplifyLikeTermsPure
+    -- ,prop_evalEquivAfterSimplifyEvalPure
+    -- ,prop_evalEquivAfterSimplifyArithmeticPure
+    -- ,prop_evalEquivAfterSimplifyFractionsPure
+    -- ,prop_evalEquivAfterSimplifyCancelPure
+    -- ,prop_evalEquivAfterSimplifySignsPure
+    -- ,prop_evalEquivAfterSimplifyPure
+    -- ,prop_evalEquivAfterSimplifyImpure
+    )
 where
 
-
-import Test.HUnit
-import Engine.Expression
+import Test.QuickCheck
+    (
+     Property
+    ,Arbitrary
+    ,ioProperty
+    )
+import Engine.Expression.Core
+import Engine.Expression.Common (
+     evaluate
+    ,symbols
+    )
 import Engine.Rules.Simplify
+import Tests.Engine.Expression.Base
 
---
-mkT :: (Expr, Expr) -> Test
-mkT (actual, expected) = (simplify $ actual, [] :: [Symbol]) ~?= (expected, [] :: [Symbol])
+--------------------------------------------------------------------------------
+
+equiv :: Env Double -> (Expr Double -> Expr Double) -> Expr Double -> Bool
+equiv env simplifyRule e = (e == f) || ((evaluate env e) ~~ (evaluate env f))
+    where
+        f = simplifyRule e
 
 
-infixr 3 =?=
-(=?=) :: a -> b -> (a, b)
-(=?=) = (,)
+equivAfter :: (Expr Double -> Expr Double) -> Expr Double -> IO Bool
+equivAfter simplifyRule e = do
+    let syms = symbols e
+    let constEnv = assignSymbols (pure pi) syms
+    -- let zeroEnv  = assignSymbols (pure 0.0) syms
+    -- randEnv <- assignRandomSymbols syms
+    return $ and [
+                  equiv constEnv simplifyRule e
+                 -- ,equiv randEnv simplifyRule e
+                 -- ,equiv zeroEnv simplifyRule e
+                 ]
 
--- 
-simplifyTestSuite :: [Test]
-simplifyTestSuite = [mkT $ num 1 + num 2 =?= num 3
-                    ,mkT $ sym "x" :** num 0 =?= num 1
-                    ,mkT $ num 2 + sym "x" =?= num 2 + sym "x"
-                    ,mkT $ num 2 * sym "x" =?= num 2 * sym "x"
-                    ,mkT $ num 2 * num 0 =?= num 0
-                    ,mkT $ num 0 * num 2 =?= num 0
-                    ,mkT $ sym "x" * num 0 =?= num 0
-                    ,mkT $ num 0 * sym "x" =?= num 0
-                    ,mkT $ sym "x" * num 1 =?= sym "x"
-                    ,mkT $ num 1 * sym "x" =?= sym "x"
-                    ,mkT $ num 2 + num 3 =?= num 5 
-                    ,mkT $ num 2 * num 3 =?= num 6]
+
+equivAfterProperty :: (Expr Double -> Expr Double) -> Expr Double -> Property
+equivAfterProperty simplifyRule = ioProperty . (equivAfter simplifyRule)
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying logarithms (pure)
+prop_evalEquivAfterSimplifyLogarithmsPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyLogarithmsPure = equivAfterProperty simplifyLogarithms
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying exponents (pure)
+prop_evalEquivAfterSimplifyExponentsPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyExponentsPure = equivAfterProperty simplifyExponents
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying exponents (pure)
+prop_evalEquivAfterSimplifyAbsolutesPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyAbsolutesPure = equivAfterProperty simplifyAbs
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying like terms (pure)
+prop_evalEquivAfterSimplifyLikeTermsPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyLikeTermsPure = equivAfterProperty simplifyLikeTerms
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying basic evaluation (pure)
+prop_evalEquivAfterSimplifyEvalPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyEvalPure = equivAfterProperty simplifyEval
+
+--------------------------------------------------------------------------------
+
+-- | Test simplifying basic evaluation (pure)
+prop_evalEquivAfterSimplifyArithmeticPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyArithmeticPure = equivAfterProperty simplifyArithmetic
+
+--------------------------------------------------------------------------------
+
+prop_evalEquivAfterSimplifyFractionsPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyFractionsPure = equivAfterProperty simplifyFractions
+
+--------------------------------------------------------------------------------
+
+prop_evalEquivAfterSimplifyCancelPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifyCancelPure = equivAfterProperty simplifyCancel
+
+--------------------------------------------------------------------------------
+
+prop_evalEquivAfterSimplifySignsPure :: Expr Double -> Property
+prop_evalEquivAfterSimplifySignsPure = equivAfterProperty simplifySigns
+
+--------------------------------------------------------------------------------
+
+-- | Test full simplification (pure)
+prop_evalEquivAfterSimplifyPure :: Expr Double -> Bool
+prop_evalEquivAfterSimplifyPure e = f ~~ f'
+  where
+     env = assignSymbols 0.42 $ symbols e
+     f   = evaluate env e
+     f'  = evaluate env $ simplify e
+
+--------------------------------------------------------------------------------
+
+-- |
+prop_evalEquivAfterSimplifyImpure :: (RealFloat a, Arbitrary a, Trigonometric a) => Expr a -> Property
+prop_evalEquivAfterSimplifyImpure = \e -> ioProperty $ evalWithRandomSymbols e
+
+--------------------------------------------------------------------------------
+
+testSuite :: [(String, Expr Double -> Property)]
+testSuite = [
+             ("prop_evalEquivAfterSimplifyLogarithmsPure", prop_evalEquivAfterSimplifyLogarithmsPure)
+            ,("prop_evalEquivAfterSimplifyExponentsPure", prop_evalEquivAfterSimplifyExponentsPure)
+            ,("prop_evalEquivAfterSimplifyAbsolutesPure", prop_evalEquivAfterSimplifyAbsolutesPure)
+            ,("prop_evalEquivAfterSimplifyLikeTermsPure", prop_evalEquivAfterSimplifyLikeTermsPure)
+            ,("prop_evalEquivAfterSimplifyEvalPure", prop_evalEquivAfterSimplifyEvalPure)
+            ,("prop_evalEquivAfterSimplifyArithmeticPure", prop_evalEquivAfterSimplifyArithmeticPure)
+            ,("prop_evalEquivAfterSimplifyFractionsPure", prop_evalEquivAfterSimplifyFractionsPure)
+            ,("prop_evalEquivAfterSimplifyCancelPure", prop_evalEquivAfterSimplifyCancelPure)
+            ,("prop_evalEquivAfterSimplifySignsPure", prop_evalEquivAfterSimplifySignsPure)
+            --,("prop_evalEquivAfterSimplifyPure", prop_evalEquivAfterSimplifyPure)
+            ]
+
+
+runSimplifyTestSuite :: IO ()
+runSimplifyTestSuite = runTestSuite testSuite
+

@@ -3,8 +3,8 @@
 module Main where
 
 
-import Engine.Base
-import Tests.Base
+import Engine.Engine ()
+import Tests.Tests ()
 
 
 -- |

@@ -15,30 +15,54 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Algebra
-                     , Tests.Base
+  exposed-modules:     Engine.Engine
+                     , Engine.Samples
+                     , Tests.Tests
   build-depends:       base >= 4.7 && < 5
                      , parsec
-                     , containers
                      , template-haskell
-                     , pretty-show
+                     , pretty
+                     , random
+                     , containers
                      , HUnit
+                     , QuickCheck
                      , mtl
   default-language:    Haskell2010
+  other-modules:       Engine.Engine
+                     , Engine.Expression.Common
+                     , Engine.Expression.Core
+                     , Engine.Expression.Format.Pretty
+                     , Engine.Rules.Diff
+                     , Engine.Rules.Simplify
+                     , Engine.Util
+                     , Tests.Engine.Expression.Base
+                     , Tests.Engine.Rules.Simplify
 
 executable cash-exe
   hs-source-dirs:      app
+                     , src
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -fno-warn-type-defaults
   build-depends:       base
                      , cash
                      , parsec
-                     , containers
                      , template-haskell
-                     , pretty-show
+                     , random
+                     , containers
+                     , pretty
                      , HUnit
+                     , QuickCheck
                      , mtl
   default-language:    Haskell2010
+  other-modules:       Engine.Engine
+                     , Engine.Expression.Common
+                     , Engine.Expression.Core
+                     , Engine.Expression.Format.Pretty
+                     , Engine.Rules.Diff
+                     , Engine.Rules.Simplify
+                     , Engine.Util
+                     , Tests.Engine.Expression.Base
+                     , Tests.Engine.Rules.Simplify
 
 test-suite cash-test
   type:                exitcode-stdio-1.0
@@ -47,10 +71,12 @@ test-suite cash-test
   build-depends:       base
                      , cash
                      , parsec
-                     , containers
                      , template-haskell
-                     , pretty-show
+                     , random
+                     , containers
+                     , pretty
                      , HUnit
+                     , QuickCheck
                      , mtl
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
