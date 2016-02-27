@@ -9,6 +9,7 @@ module Engine.Expression.Common
    x_
   ,y_
   ,z_
+  ,inv
   ,sq
   ,num
   ,sym
@@ -41,8 +42,8 @@ where
 import Test.QuickCheck hiding (collect)
 import Engine.Expression.Core
 import Engine.Util
-  ((=~)
-  ,chooseSubset
+  (
+   chooseSubset
   )
 import Data.List
   (
@@ -55,6 +56,11 @@ import qualified Data.Map as Map
 -- | Square function
 sq :: Num a => Expr a -> Expr a
 sq x = x :** 2
+
+
+-- Inverse function
+inv :: (Num a, Floating a) => Expr a -> Expr a
+inv x = x ** (N $ -1)
 
 
 -- | Predefined expression variable "x"
@@ -178,16 +184,13 @@ symbols = nub . collect
     collect (x :/ y)  = (collect x) ++ (collect y)
     collect (x :** y) = (collect x) ++ (collect y)
     collect (App _ x) = collect x
+    collect Undefined = []
 
 --------------------------------------------------------------------------------
 
 -- | Expression equality test
-(~~) :: (Eq a, RealFloat a) => Maybe (Expr a) -> Maybe (Expr a) -> Bool
-Nothing ~~ Nothing           = True
-(Just (N x)) ~~ (Just (N y)) = x =~ y
-(Just x) ~~ (Just y)         = x == y
-Nothing ~~ (Just _)          = False
-(Just _) ~~ Nothing          = False
+(~~) :: (Eq a, RealFloat a) => Expr a -> Expr a -> Bool
+(~~) = (==)
 
 
 -- |
@@ -241,14 +244,9 @@ iterateFixed :: (Eq a, Ord a, Num a, Floating a, RealFrac a, RealFloat a)
   -> Expr a
 iterateFixed f x = iterApply x $ f x
   where
-    undef (N x') = (isNaN x') || (isInfinite x')
-    undef _      = False
     iterApply y y'
-      | y == y'                       = y
-      | (not . undef $ y) && undef y' = y
-      | undef y && (not . undef $ y') = y'
-      | undef y && undef y'           = y
-      | otherwise                     = iterApply y' $ f y'
+      | y == y'   = y
+      | otherwise = iterApply y' $ f y'
 
 --------------------------------------------------------------------------------
 
@@ -263,13 +261,13 @@ iterateFixed f x = iterApply x $ f x
 --
 -- >>> evaluate [(symbol "z", 2.0)] (sym "x" + sym "y")
 -- Left $ S "x" :+ S "y"
-evaluate :: (Ord k, Eval f a, Subst f a k) => [(k, f a)] -> f a -> Maybe (f a)
+evaluate :: (Ord k, Eval f a, Subst f a k) => [(k, f a)] -> f a -> f a
 evaluate env x = eval $ subst (Map.fromList env) x
 
 
 -- | Evaluates the given expression with a single substituted value for all
 -- symbols
-evaluateWith :: (RealFloat a, Trigonometric a) => a -> Expr a -> Maybe (Expr a)
+evaluateWith :: (RealFloat a, Trigonometric a) => a -> Expr a -> Expr a
 evaluateWith initValue e = evaluate env e
   where
     syms = symbols e
@@ -278,5 +276,5 @@ evaluateWith initValue e = evaluate env e
 
 -- | Evaluates the given expression with the substituted value of zero for all
 -- symbols
-evaluateWithZeros :: (RealFloat a, Trigonometric a) => Expr a -> Maybe (Expr a)
+evaluateWithZeros :: (RealFloat a, Trigonometric a) => Expr a -> Expr a
 evaluateWithZeros = evaluateWith 0

@@ -89,9 +89,12 @@ printPretty = pp 0
     pp d (x :** y@(N _))       = parenIf d $ printf "%s**%s" (pp (d+1) x) (pp (d+1) y)
     pp d (x :** y@(C _))       = parenIf d $ printf "%s**%s" (pp (d+1) x) (pp (d+1) y)
     pp d (x :** y@(S _))       = parenIf d $ printf "%s**%s" (pp (d+1) x) (pp (d+1) y)
-    pp d (x :** y)             = parenIf d $ printf "%s**(%s)" (pp (d+1) x) (pp (d+1) y)
+    pp d (x :** y)             = parenIf d $ printf "%s**%s" (pp (d+1) x) (pp (d+1) y)
+    pp _ (App Neg (N n))       = printf "-%s" $ show n
+    pp _ (App Neg (C c))       = printf "-%s" $ show c
     pp d (App Neg x)           = parenIf d $ printf "(-%s)" (pp (d+1) x)
     pp d (App fn x)            = parenIf d $ printf "%s(%s)" (decodeName fn) (pp (d+1) x)
+    pp _ Undefined             = "undefined"
 
 
 -- | Like printPretty, but calls putStrLn on the output
@@ -169,7 +172,7 @@ printExpr = printExpr' 0
                               $+$
                               (nest' d $ printExpr' (d+1) y)
         printExpr' d (App f x) = nest' d ((text "<" <+> printFunction f <+> text ">") $+$ (printExpr' (d+1) x))
-
+        printExpr' d Undefined = nest' d $ braces $ text "undefined"
 
 -- | Prints the expression as a tree-link structure
 printTree :: Show a => Expr a -> String

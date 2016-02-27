@@ -14,7 +14,9 @@ where
 import Engine.Expression.Core
 import Engine.Expression.Common
   (
-   walk
+   inv
+  ,iterateFixed
+  ,walk
   )
 
 --------------------------------------------------------------------------------
@@ -49,23 +51,60 @@ toLeftHanded = walk reorderLeft
 
 --------------------------------------------------------------------------------
 
-canonicalizeNegative :: (Num a, Floating a, RealFrac a) => Expr a -> Expr a
-canonicalizeNegative (App Neg e) = (N $ -1.0) * e
-canonicalizeNegative e           = e
+-- | Canonicalizes negatives by 1. promoting the expression number constructor
+-- | to a negative float and 2. By converting all other negative expressions of
+-- | of the form `-e` to `-1.0 * e`
+canonicalizeNegative :: (Num a, Floating a, RealFrac a)
+  => Expr a
+  -> Expr a
+canonicalizeNegative (App Neg (N n)) = N $ -n
+canonicalizeNegative (App Neg e)     = (N $ -1.0) * e
+canonicalizeNegative e               = e
 
-canonicalizeFraction :: (Num a, Floating a, RealFrac a) => Expr a -> Expr a
+
+-- | Canonicalizes fractions by converting them to an exponent form
+canonicalizeFraction :: (Num a, Floating a, RealFrac a)
+  => Expr a
+  -> Expr a
 canonicalizeFraction (a :/ (b :** m)) = a * (b ** (-m))
 canonicalizeFraction e                = e
 
---canonicalizeConstantFold :: (Num a, Floating a, RealFrac a) => Expr a -> Expr a
---canonicalizeConstantFold (a + (N 0))      = a
---canonicalizeConstantFold ((N 0) + b)      = b
---canonicalizeConstantFold (a * (N 1))      = a
---canonicalizeConstantFold ((N 1) + b)      = b
---canonicalizeConstantFold e                = e
+
+-- | Canonicalizes expressions by folding the following expression types:
+-- | `x + 0`  -> `x`
+-- | `x * 1`  -> `x`
+-- | `x ** 0` -> `1`
+-- | `x ** 1` -> `x`
+canonicalizeConstantFold :: (Num a, Floating a, RealFrac a)
+  => Expr a
+  -> Expr a
+canonicalizeConstantFold (a :+ (N 0))     = a
+canonicalizeConstantFold ((N 0) :+ b)     = b
+canonicalizeConstantFold (a :* (N 1))     = a
+canonicalizeConstantFold ((N 1) :* b)     = b
+canonicalizeConstantFold (_ :** (N 0))    = N 1
+canonicalizeConstantFold (a :** (N 1))    = a
+canonicalizeConstantFold e                = e
+
+
+-- | Canonicalizes expressions by converting trigonometric cofunctions
+-- | to inverses of trigonmetric functions
+canonicalizeTrigAndHyperbolic :: (Num a, Floating a, RealFrac a)
+  => Expr a
+  -> Expr a
+canonicalizeTrigAndHyperbolic (App Csc e) = inv $ App Sin e
+canonicalizeTrigAndHyperbolic (App Sec e) = inv $ App Cos e
+canonicalizeTrigAndHyperbolic (App Cot e) = inv $ App Tan e
+canonicalizeTrigAndHyperbolic e           = e
 
 --------------------------------------------------------------------------------
 
 -- | Convert an expression to a canonicalized form
-canonicalize :: (Num a, Floating a, RealFrac a) => Expr a -> Expr a
-canonicalize  = canonicalizeFraction . canonicalizeNegative
+canonicalize :: (Num a, Floating a, RealFrac a, RealFloat a) => Expr a -> Expr a
+canonicalize  = walk (iterateFixed f)
+  where
+    f = canonicalizeFraction
+      . canonicalizeNegative
+      . canonicalizeConstantFold
+      . canonicalizeTrigAndHyperbolic
+

@@ -13,7 +13,6 @@ module Engine.Rules.Simplify
   ,simplifyLikeTerms
   ,simplifyEval
   ,simplifyArithmetic
-  ,simplifyFractions
   ,simplifyCancel
   ,simplifySigns
   )
@@ -79,26 +78,6 @@ simplifyCancel (N 0 :* _)  = num 0
 simplifyCancel (x :** N 1) = x
 simplifyCancel (_ :** N 0) = num 1
 simplifyCancel x           = x
-
-
--- | Simplify fractions
-simplifyFractions :: (Eq a, Floating a, RealFrac a) => Expr a -> Expr a
---simplifyFractions e@((N a') :/ ((N b') :* c))
---  | isWholeNumber $ a' / b' = (num $ a' / b') / c
---  | otherwise               = e
---simplifyFractions (c :+ (a :/ b))            = (a + (c * b)) / b
---simplifyFractions ((a :/ b) :+ c)            = (a + (c * b)) / b
---simplifyFractions (c :- (a :/ b))            = (a - (c * b)) / b
---simplifyFractions ((a :/ b) :- c)            = (a - (c * b)) / b
---simplifyFractions (a :* (b :/ c))            = ((a * b) / c)
---simplifyFractions (a :/ (b :/ c))            = ((a * c) / b)
---simplifyFractions ((a :/ b) :/ c)            = (a / (b * c))
---simplifyFractions ((a :/ b) :/ (c :/ d))     = (a * d) / (b * c)
---simplifyFractions e@((a :** c) :/ (b :** d))
---  | c == d    = (a / b) ** c
---  | otherwise = e
---simplifyFractions (a :/ (b :** c))           = (a ** c) / (b ** c)
-simplifyFractions x                          = x
 
 
 -- | Perform basic arithmetical simplifications
@@ -180,7 +159,6 @@ simplifyAlls = [
                ,simplifyExponents
                ,simplifyAbs
                ,simplifyLikeTerms
-               ,simplifyFractions
                ,simplifyArithmetic
                ,simplifyCancel
                ,simplifySigns

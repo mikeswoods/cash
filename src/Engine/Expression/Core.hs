@@ -87,7 +87,7 @@ type Env a = [(Symbol, Expr a)]
 --   b is the result of the evaluation
 class Functor f => Eval f a where
   -- | The evaluation operation
-  eval :: f a -> Maybe (f a)
+  eval :: f a -> f a
 
 --------------------------------------------------------------------------------
 
@@ -172,6 +172,7 @@ data Expr a = N a
             | (Expr a) :/ (Expr a)
             | (Expr a) :** (Expr a)
             | App Function (Expr a)
+            | Undefined
             deriving (Eq, Show, Read)
 
 
@@ -250,6 +251,7 @@ instance Functor Expr where
   fmap f (x :/ y)  = (fmap f x) :/ (fmap f y)
   fmap f (x :** y) = (fmap f x) :** (fmap f y)
   fmap f (App g x) = App g $ fmap f x
+  fmap _ Undefined = Undefined
 
 
 instance Applicative Expr where
@@ -272,6 +274,8 @@ instance Applicative Expr where
   (f :/ g) <*> (N x)     = (f <*> pure x) :/ (g <*> pure x)
   (f :** g) <*> (N x)    = (f <*> pure x) :** (g <*> pure x)
   (App g f) <*> (N x)    = App g $ f <*> pure x
+  Undefined <*> _        = Undefined
+  _ <*> Undefined        = Undefined
 
 
 instance Monad Expr where
@@ -338,6 +342,8 @@ instance Monad Expr where
   (x :** y) >>= f          = (x >>= f) :** ( y >>= f)
   -- function application
   (App g x) >>= f          = App g $ x >>= f
+  -- Undefined
+  Undefined >>= _          = Undefined
 
 
 instance (Num a, Fractional a, Floating a) => Subst Expr a Symbol where
@@ -353,63 +359,127 @@ instance (Num a, Fractional a, Floating a) => Subst Expr a Symbol where
   subst env (x :/ y)  = (subst env x) /  (subst env y)
   subst env (x :** y) = (subst env x) ** (subst env y)
   subst env (App f x) = App f $ subst env x
+  subst _ Undefined   = Undefined
 
 
 instance (Floating a, Trigonometric a, RealFloat a) => Eval Expr a where
-  eval e = eval' e
-    where
-      isFinite x = (not $ isNaN x) && (not $ isInfinite x)
-      liftApp1 (f,f') x = do
-        x' <- eval' x
-        case x' of
-          (N a) -> let r = f a
-                   in if isFinite r
-                      then Just . return $ r
-                      else Nothing
-          _     -> Just $ App f' x'
-      liftBinOp (op, op') x y = do
-        x' <- eval' x
-        y' <- eval' y
-        case (x', y') of
-          (N a, N b) -> let r = a `op` b
-                        in if isFinite r
-                           then Just . return $ r
-                           else Nothing
-          _          -> Just $ x `op'` y
-      eval' (N n)
-        | isFinite n = Just $ return n
-        | otherwise  = Nothing
-      eval' (C c)
-        | isFinite c' = Just $ return c'
-        | otherwise   = Nothing
-        where
-          c' = constToValue c
-      eval' (S _)         = Just e
-      eval' (x :+ y)      = liftBinOp ((+), (:+)) x y
-      eval' (x :- y)      = liftBinOp ((-), (:-)) x y
-      eval' (x :* y)      = liftBinOp ((*), (:*)) x y
-      eval' (x :/ y)      = liftBinOp ((/), (:/)) x y
-      eval' (x :** y)     = liftBinOp ((**), (:**)) x y
-      eval' (App Abs x)   = liftApp1 (abs, Abs) x
-      eval' (App Neg x)   = liftApp1 (negate, Neg) x
-      eval' (App Log x)   = liftApp1 (log, Log) x
-      eval' (App Exp x)   = liftApp1 (exp, Exp) x
-      eval' (App Sqrt x)  = liftApp1 (sqrt, Sqrt) x
-      eval' (App Sin x)   = liftApp1 (sin, Sin) x
-      eval' (App Cos x)   = liftApp1 (cos, Cos) x
-      eval' (App Tan x)   = liftApp1 (tan, Tan) x
-      eval' (App Sec x)   = liftApp1 (sec, Sec) x
-      eval' (App Csc x)   = liftApp1 (csc, Csc) x
-      eval' (App Cot x)   = liftApp1 (cot, Cot) x
-      eval' (App ASin x)  = liftApp1 (asin, ASin) x
-      eval' (App ACos x)  = liftApp1 (acos, ACos) x
-      eval' (App ATan x)  = liftApp1 (atan, ATan) x
-      eval' (App SinH x)  = liftApp1 (sinh, SinH) x
-      eval' (App CosH x)  = liftApp1 (cosh, CosH) x
-      eval' (App TanH x)  = liftApp1 (tanh, TanH) x
-      eval' (App ASinH x) = liftApp1 (asinh, ASinH) x
-      eval' (App ACosH x) = liftApp1 (acosh, ACosH) x
-      eval' (App ATanH x) = liftApp1 (atanh, ATanH) x
+    eval e@(N n)
+      | isNaN n || isInfinite n  = Undefined
+      | otherwise                = e
+    eval (C c)                   = N $ constToValue c
+    eval e@(S _)                 = e
+    eval (Undefined :+ _)        = Undefined
+    eval (_ :+ Undefined)        = Undefined
+    eval (x :+ y)                = eval x + eval y
+    eval (Undefined :- _)        = Undefined
+    eval (_ :- Undefined)        = Undefined
+    eval (x :- y)                = eval x - eval y
+    eval (Undefined :* _)        = Undefined
+    eval (_ :* Undefined)        = Undefined
+    eval (x :* y)                = eval x * eval y
+    eval (Undefined :/ _)        = Undefined
+    eval (_ :/ Undefined)        = Undefined
+    eval (_ :/ (N 0))            = Undefined
+    eval (x :/ y)                = eval x / eval y
+    eval ((N 0) :** (App Neg _)) = Undefined
+    eval (x :** y)               = eval x :** eval y
+    eval (App Neg (N n))         = N $ -n
+    eval (App Neg e)             = App Neg $ eval e
+    eval (App Abs (N n))         = N $ abs n
+    eval (App Abs e)             = App Abs $ eval e
+    eval (App Log (N n))         = N $ log n
+    eval (App Log e)             = App Log $ eval e
+    eval (App Exp (N n))         = N $ exp n
+    eval (App Exp e)             = App Exp $ eval e
+    eval (App Sqrt (N n))        = N $ sqrt n
+    eval (App Sqrt e)            = App Sqrt $ eval e
+    eval (App Sin (N n))         = N $ sin n
+    eval (App Sin e)             = App Sin $ eval e
+    eval (App Cos (N n))         = N $ cos n
+    eval (App Cos e)             = App Cos $ eval e
+    eval (App Tan (N n))         = N $ tan n
+    eval (App Tan e)             = App Tan $ eval e
+    eval (App Sec (N n))         = N $ sec n
+    eval (App Sec e)             = App Sec $ eval e
+    eval (App Csc (N n))         = N $ csc n
+    eval (App Csc e)             = App Csc $ eval e
+    eval (App Cot (N n))         = N $ cot n
+    eval (App Cot e)             = App Cot $ eval e
+    eval (App ASin (N n))        = N $ asin n
+    eval (App ASin e)            = App ASin $ eval e
+    eval (App ACos (N n))        = N $ acos n
+    eval (App ACos e)            = App ACos $ eval e
+    eval (App ATan (N n))        = N $ atan n
+    eval (App ATan e)            = App ATan $ eval e
+    eval (App SinH (N n))        = N $ sinh n
+    eval (App SinH e)            = App SinH $ eval e
+    eval (App CosH (N n))        = N $ cosh n
+    eval (App CosH e)            = App CosH $ eval e
+    eval (App TanH (N n))        = N $ tanh n
+    eval (App TanH e)            = App TanH $ eval e
+    eval (App ASinH (N n))       = N $ asinh n
+    eval (App ASinH e)           = App ASinH $ eval e
+    eval (App ACosH (N n))       = N $ acosh n
+    eval (App ACosH e)           = App ACosH $ eval e
+    eval (App ATanH (N n))       = N $ atanh n
+    eval (App ATanH e)           = App ATanH $ eval e
+    eval Undefined               = Undefined
+
+  --eval e = eval' e
+  --  where
+  --    isFinite x = (not $ isNaN x) && (not $ isInfinite x)
+  --    liftApp1 (f,f') x = do
+  --      x' <- eval' x
+  --      case x' of
+  --        (N a) -> let r = f a
+  --                 in if isFinite r
+  --                    then Just . return $ r
+  --                    else Nothing
+  --        _     -> Just $ App f' x'
+  --    liftBinOp (op, op') x y = do
+  --      x' <- eval' x
+  --      y' <- eval' y
+  --      case (x', y') of
+  --        (N a, N b) -> let r = a `op` b
+  --                      in if isFinite r
+  --                         then Just . return $ r
+  --                         else Nothing
+  --        _          -> Just $ x `op'` y
+  --    eval' (N n)
+  --      | isFinite n = Just $ return n
+  --      | otherwise  = Nothing
+  --    eval' (C c)
+  --      | isFinite c' = Just $ return c'
+  --      | otherwise   = Nothing
+  --      where
+  --        c' = constToValue c
+  --    eval' (S _)         = Just e
+  --    eval' (x :+ y)      = liftBinOp ((+), (:+)) x y
+  --    eval' (x :- y)      = liftBinOp ((-), (:-)) x y
+  --    eval' (x :* y)      = liftBinOp ((*), (:*)) x y
+  --    eval' (x :/ y)      = liftBinOp ((/), (:/)) x y
+  --    eval' (x :** y)     = liftBinOp ((**), (:**)) x y
+  --    eval' (App Abs x)   = liftApp1 (abs, Abs) x
+  --    eval' (App Neg x)   = liftApp1 (negate, Neg) x
+  --    eval' (App Log x)   = liftApp1 (log, Log) x
+  --    eval' (App Exp x)   = liftApp1 (exp, Exp) x
+  --    eval' (App Sqrt x)  = liftApp1 (sqrt, Sqrt) x
+  --    eval' (App Sin x)   = liftApp1 (sin, Sin) x
+  --    eval' (App Cos x)   = liftApp1 (cos, Cos) x
+  --    eval' (App Tan x)   = liftApp1 (tan, Tan) x
+  --    eval' (App Sec x)   = liftApp1 (sec, Sec) x
+  --    eval' (App Csc x)   = liftApp1 (csc, Csc) x
+  --    eval' (App Cot x)   = liftApp1 (cot, Cot) x
+  --    eval' (App ASin x)  = liftApp1 (asin, ASin) x
+  --    eval' (App ACos x)  = liftApp1 (acos, ACos) x
+  --    eval' (App ATan x)  = liftApp1 (atan, ATan) x
+  --    eval' (App SinH x)  = liftApp1 (sinh, SinH) x
+  --    eval' (App CosH x)  = liftApp1 (cosh, CosH) x
+  --    eval' (App TanH x)  = liftApp1 (tanh, TanH) x
+  --    eval' (App ASinH x) = liftApp1 (asinh, ASinH) x
+  --    eval' (App ACosH x) = liftApp1 (acosh, ACosH) x
+  --    eval' (App ATanH x) = liftApp1 (atanh, ATanH) x
+  --    eval' Undefined     = Just Undefined
 
 --------------------------------------------------------------------------------
 

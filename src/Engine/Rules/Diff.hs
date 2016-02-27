@@ -8,17 +8,21 @@ where
 
 import Engine.Expression.Core
 import Engine.Expression.Common
-    (
-     sq
-    ,num
-    ,symbol
-    ,symbols
-    ,sym'
-    )
+  (
+   sq
+  ,num
+  ,symbol
+  ,symbols
+  ,sym'
+  )
+import Engine.Util
+  (
+   euler
+  )
 import Engine.Rules.Simplify
-    (
-     simplify
-    )
+  (
+   simplify
+  )
 
 --------------------------------------------------------------------------------
 
@@ -29,6 +33,9 @@ newtype Deriv a = D (Expr a, Expr a) deriving (Eq, Show)
 -- instance (Show a, Floating a, RealFrac a) => Show (Deriv a) where
 --     show (D (f, f')) = printf "D { %s : %s }" (show f) (show f')
 
+-- | Undefined value
+dxUndefined :: Deriv a
+dxUndefined = D (Undefined, Undefined)
 
 -- | Constant rule :: d/dx(c) = 0
 dxConst :: Num a => a -> Deriv a
@@ -220,13 +227,18 @@ isConst (f :* g)  = (isConst f) && (isConst g)
 isConst (f :/ g)  = (isConst f) && (isConst g)
 isConst (f :** g) = (isConst f) && (isConst g)
 isConst (App _ f) = isConst f
+isConst Undefined = False
 
 
 -- | lifts an expression (Expr) into a derivative (Deriv) with respect to a
 -- | given symbol
-liftD :: (Eq a, Num a, Floating a, Trigonometric a) => Symbol -> Expr a -> Deriv a
+liftD :: (Eq a, Num a, Floating a, Trigonometric a, RealFloat a)
+  => Symbol
+  -> Expr a
+  -> Deriv a
 liftD _ (N n)           = dxConst n
 liftD _ (C Pi)          = dxConst $ pi
+liftD _ (C E)           = dxConst $ euler
 liftD s' (S s)
     | s == s'   = dxSym s
     | otherwise = dxSymPartial s
@@ -255,10 +267,13 @@ liftD wrt (App TanH f)  = tanh $ liftD wrt f
 liftD wrt (App ASinH f) = asinh $ liftD wrt f
 liftD wrt (App ACosH f) = acosh $ liftD wrt f
 liftD wrt (App ATanH f) = atanh $ liftD wrt f
+liftD _ Undefined       = dxUndefined
 
 
 -- | Differentiate with respect to the first symbol found in the expression
-diffF :: (Eq a, Num a, RealFloat a, Floating a, Trigonometric a) => Expr a -> Expr a
+diffF :: (Eq a, Num a, RealFloat a, Floating a, Trigonometric a)
+  => Expr a
+  -> Expr a
 diffF e = simplify $ diff firstSym e
     where
         firstSym = case symbols e of
@@ -267,7 +282,10 @@ diffF e = simplify $ diff firstSym e
 
 
 -- | Differentiate with respect to a given symbol
-diff :: (Eq a, Num a, RealFloat a, Floating a, Trigonometric a) => Symbol -> Expr a -> Expr a
+diff :: (Eq a, Num a, RealFloat a, Floating a, Trigonometric a)
+  => Symbol
+  -> Expr a
+  -> Expr a
 diff wrt e = d
     where
         D (_, d) = liftD wrt e

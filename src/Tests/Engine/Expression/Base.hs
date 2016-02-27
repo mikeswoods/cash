@@ -35,7 +35,7 @@ evalWithRandomSymbols e = do
 
 
 -- |
-evalAndCompare :: (RealFloat a, Trigonometric a) => a -> Expr a -> (Maybe (Expr a), Maybe (Expr a))
+evalAndCompare :: (RealFloat a, Trigonometric a) => a -> Expr a -> (Expr a, Expr a)
 evalAndCompare initValue e = (f, f')
   where
     env = assignSymbols (pure initValue) $ symbols e

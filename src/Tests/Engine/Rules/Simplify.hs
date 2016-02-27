@@ -12,7 +12,6 @@ module Tests.Engine.Rules.Simplify
     -- ,prop_evalEquivAfterSimplifyLikeTermsPure
     -- ,prop_evalEquivAfterSimplifyEvalPure
     -- ,prop_evalEquivAfterSimplifyArithmeticPure
-    -- ,prop_evalEquivAfterSimplifyFractionsPure
     -- ,prop_evalEquivAfterSimplifyCancelPure
     -- ,prop_evalEquivAfterSimplifySignsPure
     -- ,prop_evalEquivAfterSimplifyPure
@@ -96,11 +95,6 @@ prop_evalEquivAfterSimplifyArithmeticPure = equivAfterProperty simplifyArithmeti
 
 --------------------------------------------------------------------------------
 
-prop_evalEquivAfterSimplifyFractionsPure :: Expr Double -> Property
-prop_evalEquivAfterSimplifyFractionsPure = equivAfterProperty simplifyFractions
-
---------------------------------------------------------------------------------
-
 prop_evalEquivAfterSimplifyCancelPure :: Expr Double -> Property
 prop_evalEquivAfterSimplifyCancelPure = equivAfterProperty simplifyCancel
 
@@ -135,7 +129,6 @@ testSuite = [
             ,("prop_evalEquivAfterSimplifyLikeTermsPure", prop_evalEquivAfterSimplifyLikeTermsPure)
             ,("prop_evalEquivAfterSimplifyEvalPure", prop_evalEquivAfterSimplifyEvalPure)
             ,("prop_evalEquivAfterSimplifyArithmeticPure", prop_evalEquivAfterSimplifyArithmeticPure)
-            ,("prop_evalEquivAfterSimplifyFractionsPure", prop_evalEquivAfterSimplifyFractionsPure)
             ,("prop_evalEquivAfterSimplifyCancelPure", prop_evalEquivAfterSimplifyCancelPure)
             ,("prop_evalEquivAfterSimplifySignsPure", prop_evalEquivAfterSimplifySignsPure)
             --,("prop_evalEquivAfterSimplifyPure", prop_evalEquivAfterSimplifyPure)
